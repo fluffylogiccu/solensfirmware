@@ -1,0 +1,13 @@
+sudo: required
+dist: trusty
+before_install:
+    - sudo add-apt repository ppa:team-gcc-arm-embedded/ppa && sudo apt-get update && sudo apt-get install gcc-arm-embedded
+script:
+    - make
+deploy:
+    provider: releases
+    skip_cleanup: true
+    on:
+        tags: true
+notifications:
+    slack: fluffylogic:nb0HNZOX1WuPWgZFmHP5IFx6
