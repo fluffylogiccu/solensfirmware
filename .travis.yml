@@ -1,14 +1,21 @@
 sudo: required
 dist: trusty
 before_install:
-    - sudo add-apt-repository ppa:team-gcc-arm-embedded/ppa --yes 
-    - sudo apt-get update && sudo apt-get install gcc-arm-embedded
+- sudo add-apt-repository ppa:team-gcc-arm-embedded/ppa --yes
+- sudo apt-get update && sudo apt-get install gcc-arm-embedded
 script:
-    - make
+- make
 deploy:
-    provider: releases
-    skip_cleanup: true
-    on:
-        tags: true
+  provider: releases
+  skip_cleanup: true
+  on:
+    tags: true
 notifications:
-    slack: fluffylogic:nb0HNZOX1WuPWgZFmHP5IFx6
+  slack:
+    rooms:
+      secure: rAZO8dscrWevBSGzCVwfZsnBCIBs546YRBaMan1q+valqxwzf6cLtYA5TKY+p5c04xdePGXjgj4I9I0chq6b149XBZ1DugJO8KSnGMmrqOxPeUps+2dE5PH7iQjfpnWd56bwZlWMB+H1Lj5BljJ5bUxIT3fh+3ZDanUvhY6B2TforyTjeIiKSImDAeTDHMP+oo3pXs6Lz7UI6lLIU5rA3CwO3TqT1Cogp6ER1YAvfdyrXOA+EyzaOCAH8dRnYxSJrHju2/ecIaRtePLI6Je187TFFHU73aJ9nsfIU4RyTGkYIbfCdExXwTk+3szQrjXlquI5uWnsmRoJQIPQJmQp0YLbpQI7PatadhjRkLZoyfXfnEIVz2XFncqoYJ0HXgNdGV6LPY9Y+s0WtOMzM1EK9EDUNmoVMvE4ySkaBQIq/uzbTxf+kNZdSYVDQA62vjWJEYozJOQku6y64FMwiO2CpfzhMa5JsIxkcOrjmrzkp4TyrM93K759yHtGGBm/bvksMEcXjvaGTAw35Y0b3uG/+A8XaWpVc9znajAOwkXoJXTCeGhB3cDH/+rNdACEaGePQ+24tkzpQz/HFXExI8wcwOD5HO9fUem5E9MS+vT/ye2ZzQxoMTS9CrHOm07B6ANYjaWJdvZ7Wiaf+HaA/KP24a9MC6udUH2quEUC7O6Ks2I=
+  on_success: change
+  on_failure: always
+  template:
+  - Build <%{build_url}|#%{build_number}> (<%{compare_url}|%{commit}>) of %{repository}@%{branch}
+    by %{author} %{result} in %{duration} with message %{message}
