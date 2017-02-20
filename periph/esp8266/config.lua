@@ -1,0 +1,5 @@
+SSID="PrettyFlyForAWiFi"
+PASSWORD="925Famweb"
+APPLICATION="app.lua"
+HOST="10.0.0.68"
+PORT="8888"
