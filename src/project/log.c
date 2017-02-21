@@ -106,7 +106,9 @@ log_status_t log_send(log_packet_t *log_packet) {
                           sizeof(log_packet->log_packet_msg) +
                           firstSize;
     uint32_t fourthSize = log_packet->log_packet_dataLen;;
-   
+    
+
+    #ifdef __STM32F429I_DISCOVERY 
     // Send data serially
     while (i < firstSize) {
         while (USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET) {}
@@ -136,6 +138,40 @@ log_status_t log_send(log_packet_t *log_packet) {
         USART_SendData(USART2, *(log_packet->log_packet_data+i));
         i++;
     }
+    #endif
+
+    #ifdef __S0LENS_A
+    // Send data serially
+    while (i < firstSize) {
+        while (USART_GetFlagStatus(UART4, USART_FLAG_TXE) == RESET) {}
+        USART_SendData(USART2, *(((uint8_t *)log_packet)+i));
+        i++;
+    }
+    i = 0;
+    while (i < secondSize) {
+        while (USART_GetFlagStatus(UART4, USART_FLAG_TXE) == RESET) {}
+        USART_SendData(UART4, *(log_packet->log_packet_msg+i));
+        i++;
+    }
+    i = firstSize + sizeof(log_packet->log_packet_msg);
+    while (i < thirdSize) {
+        while (USART_GetFlagStatus(UART4, USART_FLAG_TXE) == RESET) {}
+        USART_SendData(UART4, *(((uint8_t *)log_packet)+i));
+        i++;
+    }
+    i = 0;
+    while (i < fourthSize) {
+        while (USART_GetFlagStatus(UART4, USART_FLAG_TXE) == RESET) {}
+        // Delay
+        if (i % 100 == 0) {
+            // 100 cycles works fine for lab computer
+            for (uint32_t j = 0; j < 1000; j++) {}
+        }
+        USART_SendData(UART4, *(log_packet->log_packet_data+i));
+        i++;
+    }
+ 
+    #endif
 
     return LOG_INFO_OK;
 }
@@ -154,7 +190,8 @@ log_status_t log_Init() {
 
     GPIO_InitTypeDef GPIO_InitStructure;
     USART_InitTypeDef USART_InitStructure;
-   
+
+    #ifdef __STM32F429I_DISCOVERY   
     // Enable GPIO clock
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
 
@@ -184,6 +221,43 @@ log_status_t log_Init() {
 
     // Enable USART
     USART_Cmd(USART2, ENABLE);
+
+    #endif
+
+    #ifdef __S0LENS_A
+
+    // Enable GPIO clock
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+
+    // Enable UARTr Clock
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4, ENABLE);
+
+    // Connect Pin A0 to UART4 Tx
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource0, GPIO_AF_UART4);
+
+    // Configure USART Tx as alternate function
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
+    GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+    USART_InitStructure.USART_BaudRate = LOG_BAUDRATE;
+    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+    USART_InitStructure.USART_StopBits = USART_StopBits_1;
+    USART_InitStructure.USART_Parity = USART_Parity_No;
+    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    USART_InitStructure.USART_Mode = (UART4->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Tx;
+
+    // UART configuration
+    USART_Init(UART4, &USART_InitStructure);
+
+    // Enable UART4
+    USART_Cmd(UART4, ENABLE);
+
+
+    #endif
 
     log_initialized = 1;
 

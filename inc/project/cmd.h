@@ -147,7 +147,13 @@ cmd_status_t cmd_uartInit();
  *  is recieved, it is put into the command queue to be 
  *  executed.
  */
+#ifdef __STM32F429I_DISCOVERY
 void USART2_IRQHandler(void);
+#endif
+#ifdef __S0LENS_A
+void UART4_IRQHandler(void);
+#endif
+
 #endif
 
 /**************************************

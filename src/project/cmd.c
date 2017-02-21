@@ -31,6 +31,10 @@
 #include "stm32f429i_discovery_sdram.h"
 #endif
 
+#ifdef __S0LENS_A
+#include "solens_sdram.h"
+#endif
+
 /* @brief instance of queue
  */
 static cmd_queue_t *cmd_queue;
@@ -127,6 +131,7 @@ cmd_status_t cmd_uartInit() {
     USART_InitTypeDef USART_InitStructure;
     NVIC_InitTypeDef NVIC_InitStructure;
 
+    #ifdef __STM32F429I_DISCOVERY
     // Enable GPIO clock
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
     
@@ -167,12 +172,59 @@ cmd_status_t cmd_uartInit() {
     // Enable USART2
     USART_Cmd(USART2, ENABLE);
     
+    #endif
+
+    #ifdef __S0LENS_A
+
+    // Enable GPIO clock
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+    
+    // Enable USART2 Clock
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4, ENABLE);
+
+    // Connect Pin A1 to UART4 Rx
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource1, GPIO_AF_UART4);
+    
+    // Configure USART Rx as alternate function
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    USART_InitStructure.USART_BaudRate = CMD_BAUDRATE;
+    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+    USART_InitStructure.USART_StopBits = USART_StopBits_1;
+    USART_InitStructure.USART_Parity = USART_Parity_No;
+    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    USART_InitStructure.USART_Mode = (UART4->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Rx;
+
+    // USART configuration
+    USART_Init(UART4, &USART_InitStructure);
+
+    // Enable Rx interrupts
+    USART_ITConfig(UART4, USART_IT_RXNE, ENABLE);
+
+    // Initialize interrupts
+    NVIC_InitStructure.NVIC_IRQChannel = UART4_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
+
+    // Enable UART4
+    USART_Cmd(UART4, ENABLE);
+ 
+    #endif
+
     cmd_initialized = 1;
 
     return CMD_INFO_OK;
 
 }
 
+#ifdef __STM32F429I_DISCOVERY
 void USART2_IRQHandler(void) {
     if (USART_GetITStatus(USART2, USART_IT_RXNE)) {
         uint8_t ch = USART2->DR;      
@@ -237,6 +289,75 @@ void USART2_IRQHandler(void) {
         }
     }
 }
+#endif
+
+#ifdef __S0LENS_A
+void UART4_IRQHandler(void) {
+    if (USART_GetITStatus(UART4, USART_IT_RXNE)) {
+        uint8_t ch = UART4->DR;      
+
+        if (cmd_uartCtr >= CMD_DATASTART) {
+            // Save character to data buffer
+            *(cmd_uartBuf->cmd_data + cmd_uartCtr - CMD_DATASTART) = ch;
+        } else {
+            // Save character to buffer
+            *((uint8_t *)(cmd_uartBuf) + cmd_uartCtr) = ch;
+        }
+        // Get the first byte of data length
+        if (cmd_uartCtr == CMD_DATALENSTART) {
+            cmd_uartDataSize += ch;
+        // Get the second byte
+        } else if (cmd_uartCtr == CMD_DATALENSTART + 1) {
+            cmd_uartDataSize += ch << 8;
+            // We're done if no data
+            if (cmd_uartDataSize != 0) {
+                cmd_uartBuf->cmd_data = (uint8_t *) malloc(cmd_uartDataSize);
+                cmd_uartTotal += cmd_uartDataSize;
+            }
+        }
+
+        // Increase and check if we're done
+        cmd_uartCtr++;        
+        if (cmd_uartCtr >= cmd_uartTotal) {
+            cmd_uartCtr = 0;
+            cmd_uartTotal = CMD_DATASTART;
+            cmd_uartDataSize = 0;
+            cmd_status_t st = cmd_QueueGetStatus();
+                // Check if there's room
+            if (st != CMD_INFO_QUEUEEMPTY && st != CMD_INFO_QUEUEPARTIAL) {
+                log_Log(CMD, st, "Bad queue state. Could not write command to queue.\0");
+            } else {
+                // Copy queue buffer to new array
+                cmd_cmd_t *cmdCopy;
+                st = cmd_CmdAllocate(&cmdCopy, cmd_uartBuf->cmd_dataLen);
+                if (st != CMD_INFO_OK) {
+                    log_Log(CMD, st, "Could not copy command. Could not write command to queue.\0");
+                }
+                cmdCopy->cmd_module = cmd_uartBuf->cmd_module;
+                cmdCopy->cmd_func = cmd_uartBuf->cmd_func;
+                cmdCopy->cmd_dataLen = cmd_uartBuf->cmd_dataLen;
+
+                // Don't need the data that CmdAllocate made for this
+                free(cmdCopy->cmd_data);
+                cmdCopy->cmd_data = cmd_uartBuf->cmd_data;
+              
+                // Add command to queue
+                st = cmd_QueuePut(cmdCopy);
+                if (st != CMD_INFO_OK) {
+                    log_Log(CMD, st, "Could not add command to queue.\0");
+                }
+
+                // Zero out cmd buffer
+                cmd_uartBuf->cmd_module = 0;
+                cmd_uartBuf->cmd_func = 0;
+                cmd_uartBuf->cmd_dataLen = 0;
+                cmd_uartBuf->cmd_data = NULL;               
+            }         
+        }
+    }
+}
+
+#endif
 
 #endif
 
