@@ -120,6 +120,10 @@ endif
 
 ifeq ($(BOARD),STM32F429I_DISCOVERY)
   COMP_FLAGS += __STM32F429I_DISCOVERY
+else
+  ifeq ($(BOARD),S0LENS_A)
+    COMP_FLAGS += __S0LENS_A
+  endif
 endif
 
 # INCLUDES

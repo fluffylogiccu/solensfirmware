@@ -32,21 +32,21 @@
 
 /* @brief I2C clock speed
  */
-#define OV5642_I2C2_SPEED 100000
+#define OV5642_I2C_SPEED 100000
 
 /* @brief I2C ack and nack requests
  */
-#define OV5642_I2C2_ACK 1
-#define OV5642_I2C2_NACK 0
+#define OV5642_I2C_ACK 1
+#define OV5642_I2C_NACK 0
 
 /* @brief I2C timeout
  */
-#define OV5642_I2C2_TIMEOUT 0x4000
+#define OV5642_I2C_TIMEOUT 0x4000
 
 /* @brief OV5642 read and write addresses
  */
-#define OV5642_I2C2_READADDR 0x79 //0x42
-#define OV5642_I2C2_WRITEADDR 0x78 //0x42
+#define OV5642_I2C_READADDR 0x79 //0x42
+#define OV5642_I2C_WRITEADDR 0x78 //0x42
 
 /**************************************
  * @name Private functions

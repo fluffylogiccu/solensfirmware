@@ -51,6 +51,8 @@ ov7670_status_t ov7670_clockInit() {
     gpioInit.GPIO_Speed = GPIO_Low_Speed;
     GPIO_Init(GPIOC, &gpioInit);
 #endif
+    
+    #ifdef __STM32F429I_DISCOVERY
 
     // Enable HSI clock
     RCC_HSICmd(ENABLE);
@@ -71,6 +73,32 @@ ov7670_status_t ov7670_clockInit() {
     gpioInit.GPIO_Pin = GPIO_Pin_8;
     gpioInit.GPIO_Speed = GPIO_Medium_Speed;
     GPIO_Init(GPIOA, &gpioInit);
+
+    #endif
+
+    #ifdef __S0LENS_A
+
+    // Enable HSI clock
+    RCC_HSICmd(ENABLE);
+
+    // Configure for HSI clock, no prescaler
+    RCC_MCO1Config(RCC_MCO1Source_HSI, RCC_MCO1Div_1);
+
+    // Enable GPIO clock
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+    
+    // Map alternate function 
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource8, GPIO_AF_MCO);
+
+    // Configure PA8
+    gpioInit.GPIO_OType = GPIO_OType_PP;
+    gpioInit.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    gpioInit.GPIO_Mode = GPIO_Mode_AF;
+    gpioInit.GPIO_Pin = GPIO_Pin_8;
+    gpioInit.GPIO_Speed = GPIO_Medium_Speed;
+    GPIO_Init(GPIOA, &gpioInit);
+
+    #endif 
 
     return OV7670_INFO_OK;
 }
@@ -118,6 +146,7 @@ ov7670_status_t ov7670_dmaInit() {
 ov7670_status_t ov7670_dcmiInit() {
     GPIO_InitTypeDef gpioInit;
 
+    #ifdef __STM32F429I_DISCOVERY
     /**********************************
      * DCMI     | Pin
      * --------------------------------
@@ -196,6 +225,100 @@ ov7670_status_t ov7670_dcmiInit() {
     gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
 
     GPIO_Init(GPIOD, &gpioInit); 
+
+    #endif
+
+    #ifdef __S0LENS_A
+    /**********************************
+     * DCMI     | Pin
+     * --------------------------------
+     * VSYNC    | PG9
+     * HSYNC    | PA4
+     * PIXCLK   | PA6
+     * D7       | PE6
+     * D6       | PE5
+     * D5       | PD3
+     * D4       | PC11
+     * D3       | PG11
+     * D2       | PC8
+     * D1       | PC7
+     * D0       | PC6
+     **********************************/
+
+    // Enable GPIO clocks
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA |
+                           RCC_AHB1Periph_GPIOC |
+                           RCC_AHB1Periph_GPIOD |
+                           RCC_AHB1Periph_GPIOE |
+                           RCC_AHB1Periph_GPIOG,
+                           ENABLE);
+
+    // Send clock to DCMI
+    RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_DCMI, ENABLE);
+
+    // Port A
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource4, GPIO_AF_DCMI); // HSYNC
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource6, GPIO_AF_DCMI); // PIXCLK
+
+    gpioInit.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_6;
+    gpioInit.GPIO_Mode = GPIO_Mode_AF;
+    gpioInit.GPIO_Speed = GPIO_High_Speed;
+    gpioInit.GPIO_OType = GPIO_OType_PP;
+    gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
+
+    GPIO_Init(GPIOA, &gpioInit);
+
+    // Port C
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource6, GPIO_AF_DCMI);  // D0
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource7, GPIO_AF_DCMI);  // D1
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource8, GPIO_AF_DCMI);  // D2
+
+    gpioInit.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 |
+                        GPIO_Pin_8;
+    gpioInit.GPIO_Mode = GPIO_Mode_AF;
+    gpioInit.GPIO_Speed = GPIO_High_Speed;
+    gpioInit.GPIO_OType = GPIO_OType_PP;
+    gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
+
+    GPIO_Init(GPIOC, &gpioInit);
+
+    // Port D
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource3, GPIO_AF_DCMI); // D5
+
+    gpioInit.GPIO_Pin = GPIO_Pin_3;
+    gpioInit.GPIO_Mode = GPIO_Mode_AF;
+    gpioInit.GPIO_Speed = GPIO_High_Speed;
+    gpioInit.GPIO_OType = GPIO_OType_PP;
+    gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
+
+    GPIO_Init(GPIOD, &gpioInit);
+
+    // Port E 
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource5, GPIO_AF_DCMI); // D6
+    GPIO_PinAFConfig(GPIOE, GPIO_PinSource6, GPIO_AF_DCMI); // D7
+
+    gpioInit.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6;
+    gpioInit.GPIO_Mode = GPIO_Mode_AF;
+    gpioInit.GPIO_Speed = GPIO_High_Speed;
+    gpioInit.GPIO_OType = GPIO_OType_PP;
+    gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
+
+    GPIO_Init(GPIOE, &gpioInit);
+
+    // Port G
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource9, GPIO_AF_DCMI); // VSYNC
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource11, GPIO_AF_DCMI); // D11
+
+    gpioInit.GPIO_Pin = GPIO_Pin_9 | GPIO_Pin_11;
+    gpioInit.GPIO_Mode = GPIO_Mode_AF;
+    gpioInit.GPIO_Speed = GPIO_High_Speed;
+    gpioInit.GPIO_OType = GPIO_OType_PP;
+    gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
+
+    GPIO_Init(GPIOG, &gpioInit);
+
+    #endif
+
 #if 0
     // Port E 
     GPIO_PinAFConfig(GPIOE, GPIO_PinSource1, GPIO_AF_DCMI); // D3
@@ -208,7 +331,8 @@ ov7670_status_t ov7670_dcmiInit() {
 
     GPIO_Init(GPIOE, &gpioInit); 
 #endif
-    // Initialize DCMI
+    
+	// Initialize DCMI
     DCMI_InitTypeDef dcmiInit;
 
     // DCMI Init
@@ -247,6 +371,7 @@ ov7670_status_t ov7670_i2cInit() {
     GPIO_InitTypeDef gpioInit;
     I2C_InitTypeDef i2cInit;
 
+#ifdef __STM32F429I_DISCOVERY
     // Enable I2C clock
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2, ENABLE);
 
@@ -275,12 +400,51 @@ ov7670_status_t ov7670_i2cInit() {
     i2cInit.I2C_OwnAddress1 = 0x00;
     i2cInit.I2C_Ack = I2C_Ack_Enable;
     i2cInit.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
-    i2cInit.I2C_ClockSpeed = OV7670_I2C2_SPEED;
-
+    i2cInit.I2C_ClockSpeed = OV7670_I2C_SPEED;
 
     I2C_Init(I2C2, &i2cInit);
 
     I2C_Cmd(I2C2, ENABLE);
+
+	#endif
+
+	#ifdef __S0LENS_A
+
+    // Enable I2C clock
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
+
+    // Enable Port B GPIO clock
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+
+    // Reset
+    RCC_APB1PeriphResetCmd(RCC_APB1Periph_I2C1, ENABLE);
+    RCC_APB1PeriphResetCmd(RCC_APB1Periph_I2C1, DISABLE);
+
+    // Map alternate functions
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource8, GPIO_AF_I2C1);
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource9, GPIO_AF_I2C1);
+
+    // Configure pins
+    gpioInit.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9;
+    gpioInit.GPIO_Mode = GPIO_Mode_AF;
+    gpioInit.GPIO_Speed = GPIO_High_Speed;
+    gpioInit.GPIO_OType = GPIO_OType_OD;    // Open Drain for i2c
+    gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_Init(GPIOB, &gpioInit);
+
+    // Initialize I2C configuration
+    i2cInit.I2C_Mode = I2C_Mode_I2C;
+    i2cInit.I2C_DutyCycle = I2C_DutyCycle_2;
+    i2cInit.I2C_OwnAddress1 = 0x00;
+    i2cInit.I2C_Ack = I2C_Ack_Enable;
+    i2cInit.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
+    i2cInit.I2C_ClockSpeed = OV7670_I2C_SPEED;
+
+    I2C_Init(I2C1, &i2cInit);
+
+    I2C_Cmd(I2C1, ENABLE);
+
+	#endif
 
     return OV7670_INFO_OK;
 }
@@ -292,9 +456,10 @@ ov7670_status_t ov7670_i2cStart(uint8_t address, uint8_t direction) {
         return OV7670_ERR_I2CSTART;
     }
     
-    uint32_t timeout = OV7670_I2C2_TIMEOUT;
+    uint32_t timeout = OV7670_I2C_TIMEOUT;
 
     // Wait until I2C2 is not busy
+	#ifdef __STM32F429I_DISCOVERY
     while (I2C_GetFlagStatus(I2C2, I2C_FLAG_BUSY)) {
         if (timeout-- == 0) {
             log_Log(OV7670, OV7670_ERR_I2CTIMEOUT, "I2C timed out.\0");
@@ -306,7 +471,7 @@ ov7670_status_t ov7670_i2cStart(uint8_t address, uint8_t direction) {
     I2C_GenerateSTART(I2C2, ENABLE);
 
     // Wait for slave acknowledge
-    timeout = OV7670_I2C2_TIMEOUT;
+    timeout = OV7670_I2C_TIMEOUT;
     while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_MODE_SELECT)) {
         if (timeout-- == 0) {
             log_Log(OV7670, OV7670_ERR_I2CTIMEOUT, "I2C timed out.\0");
@@ -318,7 +483,7 @@ ov7670_status_t ov7670_i2cStart(uint8_t address, uint8_t direction) {
     I2C_Send7bitAddress(I2C2, address, direction);
 
     // Wait for acknowledgement
-    timeout = OV7670_I2C2_TIMEOUT;
+    timeout = OV7670_I2C_TIMEOUT;
     if (direction == I2C_Direction_Transmitter) {
         while (!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
             if (timeout-- == 0) {
@@ -335,31 +500,84 @@ ov7670_status_t ov7670_i2cStart(uint8_t address, uint8_t direction) {
         }
     }
 
+	#endif
+
+	#ifdef __S0LENS_A
+    while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY)) {
+        if (timeout-- == 0) {
+            log_Log(OV7670, OV7670_ERR_I2CTIMEOUT, "I2C timed out.\0");
+            return OV7670_ERR_I2CTIMEOUT;
+        }
+    }
+
+    // Send START
+    I2C_GenerateSTART(I2C1, ENABLE);
+
+    // Wait for slave acknowledge
+    timeout = OV7670_I2C_TIMEOUT;
+    while(!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT)) {
+        if (timeout-- == 0) {
+            log_Log(OV7670, OV7670_ERR_I2CTIMEOUT, "I2C timed out.\0");
+            return OV7670_ERR_I2CTIMEOUT;
+        }
+    }
+
+    // Send address
+    I2C_Send7bitAddress(I2C1, address, direction);
+
+    // Wait for acknowledgement
+    timeout = OV7670_I2C_TIMEOUT;
+    if (direction == I2C_Direction_Transmitter) {
+        while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
+            if (timeout-- == 0) {
+                log_Log(OV7670, OV7670_ERR_I2CTIMEOUT, "I2C timed out.\0");
+                return OV7670_ERR_I2CTIMEOUT;
+            }   
+        }
+    } else if (direction == I2C_Direction_Receiver)  {
+        while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
+            if (timeout-- == 0) {
+                log_Log(OV7670, OV7670_ERR_I2CTIMEOUT, "I2C timed out.\0");
+                return OV7670_ERR_I2CTIMEOUT;
+            }   
+        }
+    }
+
+	#endif
+
     return OV7670_INFO_OK;
 }
 
 ov7670_status_t ov7670_i2cStop() {
+	#ifdef __STM32F429I_DISCOVERY
     I2C_GenerateSTOP(I2C2, ENABLE);
+	#endif
+
+	#ifdef __S0LENS_A
+    I2C_GenerateSTOP(I2C1, ENABLE);
+	#endif
     return OV7670_INFO_OK;
 }
 
 ov7670_status_t ov7670_i2cRead(uint8_t *data, uint8_t ack) {
-    if (!(ack == OV7670_I2C2_ACK ||
-          ack == OV7670_I2C2_NACK)) {
+    if (!(ack == OV7670_I2C_ACK ||
+          ack == OV7670_I2C_NACK)) {
         log_Log(OV7670, OV7670_ERR_I2CREAD, "Bad value for ack parameter.\0");
         return OV7670_ERR_I2CREAD;
     }
    
-    uint32_t timeout = OV7670_I2C2_TIMEOUT;            
+    uint32_t timeout = OV7670_I2C_TIMEOUT;            
 
-    if (ack == OV7670_I2C2_ACK) { 
+	#ifdef __STM32F429I_DISCOVERY
+
+    if (ack == OV7670_I2C_ACK) { 
         I2C_AcknowledgeConfig(I2C2, ENABLE);
     } else {
         I2C_AcknowledgeConfig(I2C2, DISABLE);
     }
     
     // Wait for a byte
-    timeout = OV7670_I2C2_TIMEOUT;
+    timeout = OV7670_I2C_TIMEOUT;
     while (!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
         if (timeout-- == 0) {
             log_Log(OV7670, OV7670_ERR_I2CTIMEOUT, "I2C timed out.\0");
@@ -370,26 +588,65 @@ ov7670_status_t ov7670_i2cRead(uint8_t *data, uint8_t ack) {
     // Read and return byte
     *data = I2C_ReceiveData(I2C2);
 
-    return OV7670_INFO_OK;
-}
+	#endif
 
-ov7670_status_t ov7670_i2cWrite(uint8_t data) {
-    I2C_SendData(I2C2, data);
-    // Wait for transmission
-    uint32_t timeout = OV7670_I2C2_TIMEOUT;
-    while (!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
+	#ifdef __S0LENS_A
+
+    if (ack == OV7670_I2C_ACK) { 
+        I2C_AcknowledgeConfig(I2C1, ENABLE);
+    } else {
+        I2C_AcknowledgeConfig(I2C1, DISABLE);
+    }
+    
+    // Wait for a byte
+    timeout = OV7670_I2C_TIMEOUT;
+    while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
         if (timeout-- == 0) {
             log_Log(OV7670, OV7670_ERR_I2CTIMEOUT, "I2C timed out.\0");
             return OV7670_ERR_I2CTIMEOUT;
         }   
     }
 
+    // Read and return byte
+    *data = I2C_ReceiveData(I2C1);
+
+	#endif
+	
+    return OV7670_INFO_OK;
+}
+
+ov7670_status_t ov7670_i2cWrite(uint8_t data) {
+	#ifdef __STM32F429I_DISCOVERY
+    I2C_SendData(I2C2, data);
+    // Wait for transmission
+    uint32_t timeout = OV7670_I2C_TIMEOUT;
+    while (!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
+        if (timeout-- == 0) {
+            log_Log(OV7670, OV7670_ERR_I2CTIMEOUT, "I2C timed out.\0");
+            return OV7670_ERR_I2CTIMEOUT;
+        }   
+    }
+	#endif
+
+	#ifdef __S0LENS_A
+    I2C_SendData(I2C1, data);
+    // Wait for transmission
+    uint32_t timeout = OV7670_I2C_TIMEOUT;
+    while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
+        if (timeout-- == 0) {
+            log_Log(OV7670, OV7670_ERR_I2CTIMEOUT, "I2C timed out.\0");
+            return OV7670_ERR_I2CTIMEOUT;
+        }   
+    }
+
+	#endif
+
     return OV7670_INFO_OK;
 }
 
 ov7670_status_t ov7670_regWrite(uint8_t address, uint8_t value) {
     // Start transaction
-    ov7670_status_t ret = ov7670_i2cStart(OV7670_I2C2_WRITEADDR, I2C_Direction_Transmitter);
+    ov7670_status_t ret = ov7670_i2cStart(OV7670_I2C_WRITEADDR, I2C_Direction_Transmitter);
     if (ret != OV7670_INFO_OK) {
         ov7670_i2cStop();
         log_Log(OV7670, ret);
@@ -424,7 +681,7 @@ ov7670_status_t ov7670_regWrite(uint8_t address, uint8_t value) {
 
 ov7670_status_t ov7670_regRead(uint8_t address, uint8_t *value) {
     // Start transaction
-    ov7670_status_t ret = ov7670_i2cStart(OV7670_I2C2_WRITEADDR, I2C_Direction_Transmitter);
+    ov7670_status_t ret = ov7670_i2cStart(OV7670_I2C_WRITEADDR, I2C_Direction_Transmitter);
     if (ret != OV7670_INFO_OK) {
         ov7670_i2cStop();
         log_Log(OV7670, ret);
@@ -447,14 +704,14 @@ ov7670_status_t ov7670_regRead(uint8_t address, uint8_t *value) {
     }
 
     // Start read transmission
-    ret = ov7670_i2cStart(OV7670_I2C2_READADDR, I2C_Direction_Receiver);
+    ret = ov7670_i2cStart(OV7670_I2C_READADDR, I2C_Direction_Receiver);
     if (ret != OV7670_INFO_OK) {
         log_Log(OV7670, ret);
         return ret;
     }
 
     // Read one byte
-    ret = ov7670_i2cRead(value, OV7670_I2C2_NACK);
+    ret = ov7670_i2cRead(value, OV7670_I2C_NACK);
     if (ret != OV7670_INFO_OK) {
         log_Log(OV7670, ret);
         return ret;
