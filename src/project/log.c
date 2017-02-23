@@ -144,7 +144,7 @@ log_status_t log_send(log_packet_t *log_packet) {
     // Send data serially
     while (i < firstSize) {
         while (USART_GetFlagStatus(UART4, USART_FLAG_TXE) == RESET) {}
-        USART_SendData(USART2, *(((uint8_t *)log_packet)+i));
+        USART_SendData(UART4, *(((uint8_t *)log_packet)+i));
         i++;
     }
     i = 0;
@@ -241,7 +241,7 @@ log_status_t log_Init() {
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
     GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
-    GPIO_Init(GPIOD, &GPIO_InitStructure);
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
 
     USART_InitStructure.USART_BaudRate = LOG_BAUDRATE;
     USART_InitStructure.USART_WordLength = USART_WordLength_8b;
