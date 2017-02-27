@@ -43,6 +43,11 @@ endif
 ifeq ($(BOARD),STM32F429I_DISCOVERY)
   SRCS += stm32f429i_discovery_sdram.c \
 		  stm32f4xx_fmc.c
+else 
+  ifeq ($(BOARD),S0LENS_A)
+    SRCS += solens_sdram.c \
+			stm32f4xx_fmc.c
+  endif
 endif
 
 ifeq ($(CAMERA),OV5642)

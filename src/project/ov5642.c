@@ -600,7 +600,7 @@ ov5642_status_t ov5642_i2cWrite(uint8_t data) {
     #endif
 
     #ifdef __S0LENS_A
-    I2C_SendData(I2C2, data);
+    I2C_SendData(I2C1, data);
     // Wait for transmission
     uint32_t timeout = OV5642_I2C_TIMEOUT;
     while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {

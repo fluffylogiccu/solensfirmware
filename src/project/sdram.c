@@ -20,6 +20,9 @@
 #include "stm32f429i_discovery.h"
 #include "stm32f429i_discovery_sdram.h"
 #endif
+#ifdef __S0LENS_A
+#include "solens_sdram.h"
+#endif
 
 /* @ brief Initialization flag
  */
@@ -40,13 +43,25 @@ sdram_status_t sdram_Init() {
     sdram_initialized = 1;
     return SDRAM_INFO_OK;
     #endif
-    
+   
+    #ifdef __S0LENS_A
+    // Call solens function
+    SDRAM_Init();
+    sdram_initialized = 1;
+    return SDRAM_INFO_OK;
+    #endif
+
     return SDRAM_ERR_UNKNOWN;
 }
 
 sdram_status_t sdram_write(uint32_t *buf, uint32_t addr, uint32_t size) {
 
     #ifdef __STM32F429I_DISCOVERY
+    SDRAM_WriteBuffer(buf, addr, size);
+    return SDRAM_INFO_OK;
+    #endif
+
+    #ifdef __S0LENS_A
     SDRAM_WriteBuffer(buf, addr, size);
     return SDRAM_INFO_OK;
     #endif
@@ -58,6 +73,11 @@ sdram_status_t sdram_write(uint32_t *buf, uint32_t addr, uint32_t size) {
 sdram_status_t sdram_read(uint32_t *buf, uint32_t addr, uint32_t size) {
 
     #ifdef __STM32F429I_DISCOVERY
+    SDRAM_ReadBuffer(buf, addr, size);
+    return SDRAM_INFO_OK;
+    #endif
+ 
+    #ifdef __S0LENS_A
     SDRAM_ReadBuffer(buf, addr, size);
     return SDRAM_INFO_OK;
     #endif
