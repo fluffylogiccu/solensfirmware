@@ -18,7 +18,7 @@ wifi.sta.disconnect()
 print("Setting up wifi...")
 wifi.setmode(wifi.STATION)
 wifi.sta.config(SSID,PASSWORD)
-tmr.alarm(1, 5000, 1, function()
+tmr.alarm(1, 15000, 1, function()
     if wifi.sta.getip() == nil then
         print("IP unavailable. Check your configuration file.")
         tmr.stop(1)

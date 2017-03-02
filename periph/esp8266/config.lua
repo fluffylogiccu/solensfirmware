@@ -1,5 +1,5 @@
-SSID="PrettyFlyForAWiFi"
-PASSWORD="925Famweb"
+SSID="R2D2"
+PASSWORD="w4y2drunk"
 APPLICATION="app.lua"
-HOST="10.0.0.68"
+HOST="192.168.1.2"
 PORT="8888"

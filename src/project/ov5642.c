@@ -255,9 +255,10 @@ ov5642_status_t ov5642_dcmiInit() {
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource6, GPIO_AF_DCMI);  // D0
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource7, GPIO_AF_DCMI);  // D1
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource8, GPIO_AF_DCMI);  // D2
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_DCMI); // D4
     
     gpioInit.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 |
-                        GPIO_Pin_8; 
+                        GPIO_Pin_8 | GPIO_Pin_11; 
     gpioInit.GPIO_Mode = GPIO_Mode_AF;
     gpioInit.GPIO_Speed = GPIO_High_Speed;
     gpioInit.GPIO_OType = GPIO_OType_PP;
@@ -290,7 +291,7 @@ ov5642_status_t ov5642_dcmiInit() {
 
     // Port G
     GPIO_PinAFConfig(GPIOG, GPIO_PinSource9, GPIO_AF_DCMI); // VSYNC
-    GPIO_PinAFConfig(GPIOG, GPIO_PinSource11, GPIO_AF_DCMI); // D11
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource11, GPIO_AF_DCMI); // D3
 
     gpioInit.GPIO_Pin = GPIO_Pin_9 | GPIO_Pin_11;
     gpioInit.GPIO_Mode = GPIO_Mode_AF;
