@@ -369,13 +369,13 @@ def open_com():
 def open_socket():
     global sock
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#    sock.bind(('10.0.0.68', 8888))
-#    sock.listen(1)
+    sock.bind(('192.168.1.3', 8888))
+    sock.listen(1)
 
-#    global tt
-#    tt = threading.Thread(target=proc_socket)
-#    tt.daemon = True
-#    tt.start()
+    global tt
+    tt = threading.Thread(target=proc_socket)
+    tt.daemon = True
+    tt.start()
 
 #######################################
 # Thread functions section
@@ -619,6 +619,7 @@ def serial_handle_image(l):
             g += bytes([l[l[2]+7+i]])
 
         print_info("\tDisplaying image.")
+        print("Python script recieved " + len(g) + " bytes.")
         im = Image.frombytes("L", (320,240), g)
         im.show()
 
