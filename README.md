@@ -1,4 +1,5 @@
-# Solens Firmware 
+# Solens Firmware
+[![Build Status](https://travis-ci.org/fluffylogiccu/solensfirmware.svg?branch=master)](https://travis-ci.org/fluffylogiccu/solensfirmware)
 
 This project integrates the STM32F429I-DISC1 or S0LENS board
 with an OV7670/OV5642 camera module and an ESP8266 wifi module.
@@ -23,13 +24,14 @@ PIN MAP STM32F429I-DISC1
      * D0       | PC6   | 16
      *********************************/
      
+
     /**********************************
      * I2C      | Pin   | OVxxxx Pin
      * --------------------------------
      * SCL      | PB10  | 3
      * SDA      | PB11  | 4
      *********************************/
-    
+
     /**********************************
      * MCO1     | Pin   | OVxxxx Pin
      * --------------------------------
@@ -54,6 +56,6 @@ PIN MAP STM32F429I-DISC1
      * --------------------------------
      * Tx               | A9
      * --------------------------------
-     * Connect to GPIO13 (D7) on the 
+     * Connect to GPIO13 (D7) on the
      * ESP8266 board
      *********************************/
