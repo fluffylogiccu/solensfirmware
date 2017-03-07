@@ -228,7 +228,7 @@ serial_header_size = 3
 serial_msg_size = 0
 serial_data_size = 0
 serial_list = b''
-serial_timeout = 1.0
+serial_timeout = 5.0
 serial_start_time = 0
 serial_fifo = fifo.BytesFIFO(640*480*2)
 serial_data_flag = 0
@@ -368,14 +368,14 @@ def open_com():
 
 def open_socket():
     global sock
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(('192.168.1.3', 8888))
-    sock.listen(1)
+#    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#    sock.bind(('', 8888))
+#    sock.listen(1)
 
     global tt
-    tt = threading.Thread(target=proc_socket)
-    tt.daemon = True
-    tt.start()
+#    tt = threading.Thread(target=proc_socket)
+#    tt.daemon = True
+#    tt.start()
 
 #######################################
 # Thread functions section
@@ -619,7 +619,6 @@ def serial_handle_image(l):
             g += bytes([l[l[2]+7+i]])
 
         print_info("\tDisplaying image.")
-        print("Python script recieved " + len(g) + " bytes.")
         im = Image.frombytes("L", (320,240), g)
         im.show()
 
@@ -693,7 +692,7 @@ def serial_parse_log(d):
 
     if (serial_data_flag == 1):
         # Just get all data, don't look at it
-    
+
         serial_start_time = time.time()
 
         if len(d) >= serial_total - serial_count:
@@ -732,6 +731,8 @@ def serial_parse_log(d):
     
             if serial_count == serial_total:
                 serial_print_log(serial_list)
+
+    print(serial_count)
 
 #######################################
 

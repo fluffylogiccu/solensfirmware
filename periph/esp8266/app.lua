@@ -4,18 +4,25 @@ print("IP address: ",ip)
 print("Netmask: ",nm)
 print("Gateway Address: ", gw,'\n')
 
-data_sent = 0;
-d = ''
-
-sck=net.createConnection(net.TCP, 0) 
-sck:on("sent", function()
-    if #d > 0 then
-        sck:send(d)
-        d = ''
-    else 
-        data_sent = 0
+function tableEmpty(self)
+    for _, _ in pairs(self) do
+        return false
     end
-end)
+    return true
+end
+
+q = {}
+
+sck=net.createConnection(net.TCP, 0)
+
+function sentCallback(sent)  
+--    print ("entered sentCallback")
+    if not tableEmpty(q) then
+--        print("table has data, calling sck send")
+        sck:send(table.remove(q,1))
+    end
+end
+sck:on("sent", sentCallback)
 sck:on("connection", function() 
     print ("Connected to TCP server on port "..PORT.." and host "..HOST)
     
@@ -23,27 +30,15 @@ sck:on("connection", function()
         uart.alt(1)
         uart.setup(0, 9600, 8, uart.PARITY_NONE, uart.STOPBITS_1, 0)
         uart.on("data", 128, function(data)
-        --    sck:send('uart transfer rec ')
-        --    uart.write(0, 'Z')
---uart.on("data", 128, function(data)
-            
-            -- TODO
-            -- need to put some sort of lock for sending
-            -- LOCK
-            -- sck:send(d)
-            -- d = ''
-            -- UNLOCK
-            -- because this way can call a send
-            -- get more uart and concat
-            -- set d = ''
-            -- then we have lost data
-            d = d..data
-            if #d > 0 then                
-                sck:send(d)
-                d = ''
-                data_sent = 1
+            if tableEmpty(q) then
+--                print ("table is empty, inserting data")
+                table.insert(q,d)
+--                print ("calling sentCallback")
+                sentCallback('')
+            else
+--                print ("table is not empty, inserting data")
+                table.insert(q,d)
             end
-        --    sck:send(data);
         end, 0)
     end)
     then
