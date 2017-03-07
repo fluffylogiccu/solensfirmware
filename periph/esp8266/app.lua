@@ -20,7 +20,7 @@ total_size = 153472 --153728
 
 function sendFile()
 
-    if file.open("img.raw", "r") then
+    if file.open("temp.raw", "r") then
         --print ("opened file")
         local function sendChunk()
             local line = file.read(512)
@@ -36,6 +36,8 @@ function sendFile()
         end
         sendChunk()
     else
+        sck:send("could not open file")
+        sck:close()
         --print ("could not open file")
     end
 
@@ -61,6 +63,7 @@ sck:on("connection", function()
                 file.close()
                 current_size = current_size + #data
                 if current_size >= total_size then
+                    tmr.delay(10000)
                     sendFile()
                 end
             end
