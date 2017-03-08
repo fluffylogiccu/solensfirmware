@@ -65,15 +65,6 @@ sck:on("connection", function()
                 tmr.delay(10000)
                 sendFile()
             end
-            --if file.open("temp.raw", "a+") then
-            --    file.write(data)
-            --    file.close()
-            --    current_size = current_size + #data
-            --    if current_size >= total_size then
-            --        tmr.delay(10000)
-            --        sendFile()
-            --    end
-            --end
         end, 0)
     end)
     then
