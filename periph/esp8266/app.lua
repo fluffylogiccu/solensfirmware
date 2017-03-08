@@ -52,21 +52,28 @@ sck:on("connection", function()
     if not tmr.create():alarm(1000, tmr.ALARM_SINGLE, function()
         file.remove("temp.raw")
         file.open("temp.raw","w")
-        file.close()
+        --file.close()
         current_size = 0
 
         uart.alt(1)
         uart.setup(0, 9600, 8, uart.PARITY_NONE, uart.STOPBITS_1, 0)
         uart.on("data", 128, function(data)
-            if file.open("temp.raw", "a+") then
-                file.write(data)
+            file.write(data)
+            current_size = current_size + #data
+            if current_size >= total_size then
                 file.close()
-                current_size = current_size + #data
-                if current_size >= total_size then
-                    tmr.delay(10000)
-                    sendFile()
-                end
+                tmr.delay(10000)
+                sendFile()
             end
+            --if file.open("temp.raw", "a+") then
+            --    file.write(data)
+            --    file.close()
+            --    current_size = current_size + #data
+            --    if current_size >= total_size then
+            --        tmr.delay(10000)
+            --        sendFile()
+            --    end
+            --end
         end, 0)
     end)
     then

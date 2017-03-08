@@ -736,7 +736,7 @@ def serial_parse_log(d):
                 serial_print_log(serial_list)
 
     print(serial_count)
-    if serial_count == 153472:
+    if serial_count == 153472 or serial_count == 153510:
         serial_print_log(serial_list)
 
 
