@@ -19,83 +19,197 @@
 #include "wifi.h"
 #include <stdint.h>
 
+// UART queue
+static esp8266_queue_t *esp8266_queue;
+
+// MQTT connection initializer
+static MQTTPacket_connectData esp8266_mqtt;
+
+// MQTT topic initializer
+static MQTTString esp8266_mqttTopic;
+
+// MQTT message buffer
+uint8_t esp8266_mqttBuf[200];
+
+uint32_t esp8266_mqttLen;
+
 /**************************************
  * Private functions
  */
 
+int esp8266_uartBufRead(unsigned char *buf, int len) {
+	// Read from circular buffer
+    unit8_t ch = 0;
+    esp8266_status_t ret = ESP8266_INFO_OK;
+    uint32_t i = 0;
+    while (i < len) {
+        ret = esp8266_queueGet(&ch);
+        if (ret == ESP8266_INFO_OK) {
+            *buf = ch;
+            buf++;
+        } else {
+            return -1;
+        }
+        i++;
+    }
+    
+	return 0;
+}
+
+esp8266_status_t esp8266_uartSend(uint8_t *data, uint32_t len) {
+    // Send data over USART1
+    int i = 0
+    while (i < len) {
+        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
+        USART_SendData(USART1, *(data+i));
+        i++;
+    }
+}
+
+esp8266_status_t esp8266_mqttInit() {
+    esp8266_mqtt = MQTTPacket_connectData_initializer;
+    esp8266_mqttLen = sizeof(esp8266_mqttBuf);
+    esp8266_mqttTopic = MQTTString_initializer;
+    
+    esp8266_mqtt.clientID.cstring = "Ben";
+    esp8266_mqtt.keepAliveInterVal = 20;
+    esp8266_mqtt.cleansession = 1;
+    esp8266_mqtt.username.cstring = "admin";
+    esp8266_mqtt.password.cstring = "password";
+   
+    uint32_t len = MQTTSerializeConnect(esp8266_mqttBuf, esp8266_mqttLen, &esp8266_mqtt);
+    esp8266_status_t ret = esp8266_uartSend(esp8266_mqttBuf, len);
+}
+
+esp8266_status_t esp8266_queueInit() {
+
+    // Allocate space for queue
+    esp8266_queue = NULL;
+    esp8266_queue = (esp8266_queue_t *) malloc(sizeof(esp8266_queue_t));
+
+    if (esp8266_queue == NULL) {
+        log_Log(ESP8266, ESP8266_ERR_MALLOC, "Couldn't initialize esp8266_queue memory.\0");
+        return ESP8266_ERR_MALLOC;
+    }
+
+    esp8266_queue->esp8266_queue_buf = NULL;
+    esp8266_queue->esp8266_queue_buf = (uint8_t *) malloc(sizeof(esp8266_esp8266_t *)*ESP8266_QUEUE_CAP);
+    if (esp8266_queue->esp8266_queue_buf == NULL) {
+        log_Log(ESP8266, ESP8266_ERR_MALLOC, "Couldn't initialize esp8266_queue_buf memory.\0");
+        return ESP8266_ERR_MALLOC;
+    }
+
+    esp8266_queue->esp8266_queue_head = esp8266_queue->esp8266_queue_buf;
+    esp8266_queue->esp8266_queue_tail = esp8266_queue->esp8266_queue_buf;
+    esp8266_queue->esp8266_queue_capacity = ESP8266_QUEUE_CAP;
+    esp8266_queue->esp8266_queue_size = 0;
+    esp8266_queue->esp8266_queue_status = ESP8266_QUEUE_EMPTY;
+
+    #ifndef __ESP8266
+    esp8266_initialized = 1;
+    #endif
+
+    return ESP8266_INFO_OK;
+}
+
+esp8266_status_t esp8266_queuePut(uint8_t data) {
+    // Check for full queue
+    if (esp8266_queue->esp8266_queue_status == ESP8266_QUEUE_FULL) {
+        log_Log(ESP8266, ESP8266_ERR_QUEUEFULL);
+        return ESP8266_ERR_QUEUEFULL;
+    }
+    if (esp8266_queue->esp8266_queue_status == ESP8266_QUEUE_INVALID) {
+        log_Log(ESP8266, ESP8266_ERR_QUEUEINVALID);
+        return ESP8266_ERR_QUEUEINVALID;
+    }
+
+    // Set data
+    *esp8266_queue->esp8266_queue_head = data;
+
+    // Increment head and check for buffer wrap
+    esp8266_queue->esp8266_queue_head++;
+    if ((esp8266_queue->esp8266_queue_head - esp8266_queue->esp8266_queue_buf) >=
+         esp8266_queue->esp8266_queue_capacity) {
+
+        esp8266_queue->esp8266_queue_head -= esp8266_queue->esp8266_queue_capacity;
+    }
+    esp8266_queue->esp8266_queue_size++;
+
+    // Set new state
+    if (esp8266_queue->esp8266_queue_size == esp8266_queue->esp8266_queue_capacity ||
+        esp8266_queue->esp8266_queue_head == esp8266_queue->esp8266_queue_tail) {
+
+        esp8266_queue->esp8266_queue_status = ESP8266_QUEUE_FULL;
+    } else {
+        esp8266_queue->esp8266_queue_status = ESP8266_QUEUE_PARTIAL;
+    }
+
+    return ESP8266_INFO_OK;
+}
+
+esp8266_status_t esp8266_queueGet(uint8_t *data) {
+    // Check for valud esp8266 pointer
+    if (esp8266 == NULL) {
+        log_Log(ESP8266, ESP8266_ERR_NULLPTR, "Invalid command pointer in parameter list for esp8266_queueGet.\0");
+        return ESP8266_ERR_NULLPTR;
+    }
+
+    // Check if queue is empty
+    if (esp8266_queue->esp8266_queue_status == ESP8266_QUEUE_EMPTY) {
+        log_Log(ESP8266, ESP8266_ERR_QUEUEEMPTY, "Trying to get from an empty command queue.\0");
+        return ESP8266_ERR_QUEUEEMPTY;
+    }
+
+    // Set command
+    *data = *esp8266_queue->esp8266_queue_tail;
+
+    // Increment tail and check for wrap
+    esp8266_queue->esp8266_queue_tail++;
+    if ((esp8266_queue->esp8266_queue_tail - esp8266_queue->esp8266_queue_buf) >=
+         esp8266_queue->esp8266_queue_capacity) {
+
+        esp8266_queue->esp8266_queue_tail -= esp8266_queue->esp8266_queue_capacity;
+    }
+    esp8266_queue->esp8266_queue_size--;
+
+    // Set new state
+    if (esp8266_queue->esp8266_queue_size == 0) {
+        esp8266_queue->esp8266_queue_status = ESP8266_QUEUE_EMPTY;
+    } else {
+        esp8266_queue->esp8266_queue_status = ESP8266_QUEUE_PARTIAL;
+    }
+
+    return ESP8266_INFO_OK;
+}
+
 /**************************************
  * Public functions
  */
+void USART2_IRQHandler(void) {
+    if (USART_GetITStatus(USART1, USART_IT_RXNE)) {
+        uint8_t ch = USART1->DR;
+        esp8266_queuePut(ch);
+		// Save to circular buffer
+    }
+}
 
-esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
+esp8266_status_t esp8266_Send(wifi_topic_t *wifi_topic, uint8_t *data, uint32_t len) {
 	uint32_t i = 0;
-    uint8_t firstSize = sizeof(wifi_packet->wifi_packet_mod) +
-                        sizeof(wifi_packet->wifi_packet_status) +
-                        sizeof(wifi_packet->wifi_packet_msgLen);
-    uint16_t secondSize = wifi_packet->wifi_packet_msgLen;
-    uint16_t thirdSize = sizeof(wifi_packet->wifi_packet_dataLen) +
-                         sizeof(wifi_packet->wifi_packet_msg) +
-                         firstSize;
-    uint32_t fourthSize = wifi_packet->wifi_packet_dataLen;;
 
     #ifdef __STM32F429I_DISCOVERY
     // Send data serially
-    while (i < firstSize) {
+    while (i < len) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        USART_SendData(USART1, *(((uint8_t *)wifi_packet)+i));
-        i++;
-    }
-    i = 0;
-    while (i < secondSize) {
-        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        USART_SendData(USART1, *(wifi_packet->wifi_packet_msg+i));
-        i++;
-    }
-    i = firstSize + sizeof(wifi_packet->wifi_packet_msg);
-    while (i < thirdSize) {
-        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        USART_SendData(USART1, *(((uint8_t *)wifi_packet)+i));
-        i++;
-    }
-    i = 0;
-    while (i < fourthSize) {
-        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        // Delay of 100 works for lab computers
-        if (i % 100 == 0) {        
-            for (uint32_t j = 0; j < 1000; j++) {}
-        }
-        USART_SendData(USART1, *(wifi_packet->wifi_packet_data+i));
+        USART_SendData(USART1, *(((uint8_t *)wifi_)+i));
         i++;
     }
     #endif
 
     #ifdef __S0LENS_A
     // Send data serially
-    while (i < firstSize) {
+    while (i < len) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
         USART_SendData(USART1, *(((uint8_t *)wifi_packet)+i));
-        i++;
-    }
-    i = 0;
-    while (i < secondSize) {
-        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        USART_SendData(USART1, *(wifi_packet->wifi_packet_msg+i));
-        i++;
-    }
-    i = firstSize + sizeof(wifi_packet->wifi_packet_msg);
-    while (i < thirdSize) {
-        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        USART_SendData(USART1, *(((uint8_t *)wifi_packet)+i));
-        i++;
-    }
-    i = 0;
-    while (i < fourthSize) {
-        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        // Delay of 100 works for lab computers
-        if (i % 100 == 0) {        
-            for (uint32_t j = 0; j < 1000; j++) {}
-        }
-        USART_SendData(USART1, *(wifi_packet->wifi_packet_data+i));
         i++;
     }
     #endif

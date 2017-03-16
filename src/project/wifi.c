@@ -28,34 +28,15 @@ static uint8_t wifi_initialized = 0;
  * Public functions
  */
 
-wifi_status_t wifi_Send(mod_t module, gen_status_t status, char *msg, uint32_t len, uint8_t *data) {
+wifi_status_t wifi_Send(wifi_topic_t topic, uint8_t *data, uint32_t len) {
+
 
 	if (len > WIFI_MAXDATASIZE) {
         return WIFI_ERR_DATASIZE;
     }
 
-    // Get msg length
-    uint8_t msgLen = 0;
-    while (*(msg+msgLen) != '\0') {
-        msgLen++;
-
-        // Check for message size
-        if (msgLen == WIFI_MAXMSGSIZE) {
-            return WIFI_ERR_MSGSIZE;
-        }
-    }
-
-    // Construct packet
-    wifi_packet_t wifi_packet;
-    wifi_packet.wifi_packet_mod = module;
-    wifi_packet.wifi_packet_status = status;
-    wifi_packet.wifi_packet_msgLen = msgLen;
-    wifi_packet.wifi_packet_msg = (uint8_t *) msg;
-    wifi_packet.wifi_packet_dataLen = len;
-    wifi_packet.wifi_packet_data = data;
-
 	#ifdef __ESP8266
-	esp8266_status_t st = esp8266_Send(&wifi_packet);
+	esp8266_status_t st = esp8266_Send((esp8266_topic_t) topic, data, len);
 	if (st == ESP8266_INFO_OK) {
 		return WIFI_INFO_OK;
 	} else {
