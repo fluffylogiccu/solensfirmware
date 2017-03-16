@@ -75,6 +75,15 @@ int esp8266_uartBufRead(unsigned char *buf, int len);
  */
 esp8266_status_t esp8266_uartSend(uint8_t *data, uint32_t len);
 
+/** @brief Initialize the UART
+ *
+ *  This function initializes the UART for bidrectional
+ *  communication.
+ *
+ *  @return a return code of type esp6288_status_t
+ **/
+esp8266_status_t esp8266_uartInit();
+
 /** @brief Initialize the MQTT client
  *
  *  This should be called from the ESP initialization
@@ -84,6 +93,34 @@ esp8266_status_t esp8266_uartSend(uint8_t *data, uint32_t len);
  *  @return a return code of type esp6288_status_t
  **/
 esp8266_status_t esp8266_mqttInit();
+
+/** @brief Initialize the UART RX queue
+ *
+ *  This initializes the UART RX queue.
+ *
+ *  @return a return code of type esp6288_status_t
+ **/
+esp8266_status_t esp8266_queueInit();
+
+/** @brief Puts a byte in the queue
+ *
+ *  This function puts a single byte in the queue. This
+ *  should be called from the UART interrupt handler.
+ *
+ *  @param data the byte to put in the queue
+ *  @return a return code of type esp6288_status_t
+ **/
+esp8266_status_t esp8266_queuePut(uint8_t data);
+
+/** @brief Gets a byte in the queue
+ *
+ *  This function gets a single byte from the queue.
+ *
+ *  @param data the location to put the data in
+ *  @return a return code of type esp6288_status_t
+ **/
+esp8266_status_t esp8266_queueGet(uint8_t *data);
+
 
 /**************************************
  * @name Public functions

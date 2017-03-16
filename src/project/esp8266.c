@@ -17,6 +17,7 @@
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_usart.h"
 #include "wifi.h"
+#include "MQTTPacket.h"
 #include <stdint.h>
 
 // UART queue
@@ -66,6 +67,81 @@ esp8266_status_t esp8266_uartSend(uint8_t *data, uint32_t len) {
     }
 }
 
+esp8266_status_t esp8266_uartInit() {
+    GPIO_InitTypeDef GPIO_InitStructure;
+    USART_InitTypeDef USART_InitStructure;
+
+    #ifdef __STM32F429I_DISCOVERY
+    // Enable GPIO clock
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+
+    // Enable USART1 Clock
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
+
+    // Connect Pin A9 to USART1 Tx
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_USART1);
+
+    // Configure USART Tx as alternate function
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    USART_InitStructure.USART_BaudRate = ESP8266_BAUDRATE;
+    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+    USART_InitStructure.USART_StopBits = USART_StopBits_1;
+    USART_InitStructure.USART_Parity = USART_Parity_No;
+    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    USART_InitStructure.USART_Mode = (USART1->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Tx;
+
+    // USART configuration
+    USART_Init(USART1, &USART_InitStructure);
+
+    // Enable USART
+    USART_Cmd(USART1, ENABLE);
+
+    #endif
+
+    #ifdef __S0LENS_A
+
+    // Enable GPIO clock
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+
+    // Enable USART1 Clock
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
+
+    // Connect Pin A9 to USART1 Tx
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_USART1);
+
+    // Configure USART Tx as alternate function
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    USART_InitStructure.USART_BaudRate = ESP8266_BAUDRATE;
+    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+    USART_InitStructure.USART_StopBits = USART_StopBits_1;
+    USART_InitStructure.USART_Parity = USART_Parity_No;
+    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    USART_InitStructure.USART_Mode = (USART1->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Tx;
+
+    // USART configuration
+    USART_Init(USART1, &USART_InitStructure);
+
+    // Enable USART
+    USART_Cmd(USART1, ENABLE);
+
+    #endif
+
+    return ESP8266_INFO_OK;
+
+}
+
 esp8266_status_t esp8266_mqttInit() {
     esp8266_mqtt = MQTTPacket_connectData_initializer;
     esp8266_mqttLen = sizeof(esp8266_mqttBuf);
@@ -77,8 +153,20 @@ esp8266_status_t esp8266_mqttInit() {
     esp8266_mqtt.username.cstring = "admin";
     esp8266_mqtt.password.cstring = "password";
    
-    uint32_t len = MQTTSerializeConnect(esp8266_mqttBuf, esp8266_mqttLen, &esp8266_mqtt);
+    uint32_t len = MQTTSerialize_connect(esp8266_mqttBuf, esp8266_mqttLen, &esp8266_mqtt);
     esp8266_status_t ret = esp8266_uartSend(esp8266_mqttBuf, len);
+
+    if (MQTTPacket_read(esp8266_mqttBuf, esp8266_mqttLen, esp8266_uartBufRead) == CONNACK) {
+        unsigned char sessionPresent, connack_rc;
+
+        if (MQTTDeserialize_connack(&sessionPresent, &connack_rc, esp8266_mqttBuf, esp8266_mqttLen)) {
+            return ESP8266_ERR_CONNACK;
+        }
+    } else {
+        return ESP8266_ERR_CONNACK;
+    }
+
+    return ESP8266_INFO_OK;
 }
 
 esp8266_status_t esp8266_queueInit() {
@@ -196,98 +284,31 @@ void USART2_IRQHandler(void) {
 esp8266_status_t esp8266_Send(wifi_topic_t *wifi_topic, uint8_t *data, uint32_t len) {
 	uint32_t i = 0;
 
-    #ifdef __STM32F429I_DISCOVERY
-    // Send data serially
-    while (i < len) {
-        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        USART_SendData(USART1, *(((uint8_t *)wifi_)+i));
-        i++;
+    if (wifi_topic == IMAGE) {
+        esp8266_mqttTopic.cstring = "image";
+        uint8_t msgLen = MQTTSerialize_publish(esp8266_mqttBuf, esp8266_mqttLen, 0, 0, 0, 0, esp8266_mqttTopic, data, len);
+        esp8266_status_t ret = esp8266_uartSend(esp8266_mqttBuf, b);
+        if (ret != ESP8266_INFO_OK) {
+            return ret;
+        }
     }
-    #endif
-
-    #ifdef __S0LENS_A
-    // Send data serially
-    while (i < len) {
-        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        USART_SendData(USART1, *(((uint8_t *)wifi_packet)+i));
-        i++;
-    }
-    #endif
 
     return WIFI_INFO_OK;
 }
 
 esp8266_status_t esp8266_Init() {
-    GPIO_InitTypeDef GPIO_InitStructure;
-    USART_InitTypeDef USART_InitStructure;
-
-    #ifdef __STM32F429I_DISCOVERY
-    // Enable GPIO clock
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
-
-    // Enable USART1 Clock
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
-
-    // Connect Pin A9 to USART1 Tx
-    GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_USART1);
-
-    // Configure USART Tx as alternate function
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-    USART_InitStructure.USART_BaudRate = ESP8266_BAUDRATE;
-    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-    USART_InitStructure.USART_StopBits = USART_StopBits_1;
-    USART_InitStructure.USART_Parity = USART_Parity_No;
-    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    USART_InitStructure.USART_Mode = (USART1->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Tx;
-
-    // USART configuration
-    USART_Init(USART1, &USART_InitStructure);
-
-    // Enable USART
-    USART_Cmd(USART1, ENABLE);
-
-    #endif
-
-    #ifdef __S0LENS_A
-
-    // Enable GPIO clock
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
-
-    // Enable USART1 Clock
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
-
-    // Connect Pin A9 to USART1 Tx
-    GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_USART1);
-
-    // Configure USART Tx as alternate function
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-    USART_InitStructure.USART_BaudRate = ESP8266_BAUDRATE;
-    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-    USART_InitStructure.USART_StopBits = USART_StopBits_1;
-    USART_InitStructure.USART_Parity = USART_Parity_No;
-    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    USART_InitStructure.USART_Mode = (USART1->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Tx;
-
-    // USART configuration
-    USART_Init(USART1, &USART_InitStructure);
-
-    // Enable USART
-    USART_Cmd(USART1, ENABLE);
-
-    #endif
-
+    esp8266_status_t ret =  esp8266_uartInit();
+    if (ret != ESP8266_INFO_OK) {
+        return ret;
+    }
+    ret = esp8266_queueInit();
+    if (ret != ESP8266_INFO_OK) {
+        return ret;
+    }
+    ret = esp8266_mqttInit();
+    if (ret != ESP8266_INFO_OK) {
+        return ret;
+    }
 	return ESP8266_INFO_OK;
 }
 

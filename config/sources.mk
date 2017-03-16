@@ -13,7 +13,19 @@ SRCS := main.c \
 		misc.c \
 		stm32f4xx_rcc.c \
 		stm32f4xx_gpio.c \
-		stm32f4xx_exti.c
+		stm32f4xx_exti.c \
+		\
+		MQTTConnectClient.c \
+		MQTTConnectServer.c \
+		MQTTDeserializePublish.c \
+		MQTTFormat.c \
+		MQTTPacket.c \
+		MQTTSerializePublish.c \
+		MQTTSubscribeClient.c \
+		MQTTSubscribeServer.c \
+		MQTTUnsubscribeClient.c \
+		MQTTUnsubscribeServer.c
+
 
 ifeq ($(DEBUG),TRUE)
   ifneq ($(LOG),NONE)
@@ -82,13 +94,14 @@ ASMS := $(SRCS:.c=.s)
 PRES := $(SRCS:.c=.i)
 
 # Search path for source files
-VPATH = src:src/drivers:src/drivers/discovery:src/project:src/startup:src/test
+VPATH = src:src/drivers:src/drivers/discovery:src/drivers/mqtt:src/project:src/startup:src/test
 
 # Include directory
 INC_DIR := inc \
            inc/project \
            inc/drivers \
 		   inc/drivers/discovery \
+		   inc/drivers/mqtt \
            inc/startup \
            inc/test
 
