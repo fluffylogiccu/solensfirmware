@@ -24,7 +24,7 @@
 
 /* @brief Wifi channel enum
  */
-typedef enum wifi_topic_e {IMAGE, HEALTH} wifi_topic_t;
+typedef enum wifi_topic_e {WIFI_IMAGE, WIFI_HEALTH} wifi_topic_t;
 
 /**************************************
  * @name Private functions
@@ -43,7 +43,7 @@ typedef enum wifi_topic_e {IMAGE, HEALTH} wifi_topic_t;
  *  @param data optional pointer to data bufffer
  *  @return a status code of type wifi_status_t
  */
-wifi_status_t wifi_Send(wifi_Channel_t channel, uint8_t *data, uint32_t len);
+wifi_status_t wifi_Send(wifi_topic_t topic, uint8_t *data, uint32_t len);
 
 /** @brief Wifi initialization
  *

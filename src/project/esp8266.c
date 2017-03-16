@@ -40,7 +40,7 @@ uint32_t esp8266_mqttLen;
 
 int esp8266_uartBufRead(unsigned char *buf, int len) {
 	// Read from circular buffer
-    unit8_t ch = 0;
+    uint8_t ch = 0;
     esp8266_status_t ret = ESP8266_INFO_OK;
     uint32_t i = 0;
     while (i < len) {
@@ -59,7 +59,7 @@ int esp8266_uartBufRead(unsigned char *buf, int len) {
 
 esp8266_status_t esp8266_uartSend(uint8_t *data, uint32_t len) {
     // Send data over USART1
-    int i = 0
+    int i = 0;
     while (i < len) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
         USART_SendData(USART1, *(data+i));
@@ -148,7 +148,7 @@ esp8266_status_t esp8266_mqttInit() {
     esp8266_mqttTopic = MQTTString_initializer;
     
     esp8266_mqtt.clientID.cstring = "Ben";
-    esp8266_mqtt.keepAliveInterVal = 20;
+    esp8266_mqtt.keepAliveInterval = 20;
     esp8266_mqtt.cleansession = 1;
     esp8266_mqtt.username.cstring = "admin";
     esp8266_mqtt.password.cstring = "password";
@@ -281,10 +281,10 @@ void USART2_IRQHandler(void) {
     }
 }
 
-esp8266_status_t esp8266_Send(wifi_topic_t *wifi_topic, uint8_t *data, uint32_t len) {
+esp8266_status_t esp8266_Send(esp8266_topic_t topic, uint8_t *data, uint32_t len) {
 	uint32_t i = 0;
 
-    if (wifi_topic == IMAGE) {
+    if (topic == IMAGE) {
         esp8266_mqttTopic.cstring = "image";
         uint8_t msgLen = MQTTSerialize_publish(esp8266_mqttBuf, esp8266_mqttLen, 0, 0, 0, 0, esp8266_mqttTopic, data, len);
         esp8266_status_t ret = esp8266_uartSend(esp8266_mqttBuf, b);

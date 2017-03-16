@@ -23,7 +23,7 @@
 #define ESP8266_BAUDRATE 921600*2
 #define ESP8266_QUEUE_CAP 256
 
-typedef enum esp8266_topic_e {IMAGE, HEALTH} esp8266_topic_t;
+typedef enum esp8266_topic_e {ESP8266_IMAGE, ESP8266_HEALTH} esp8266_topic_t;
 
 /* @brief queue state enumeration
  */
@@ -42,7 +42,7 @@ typedef struct __attribute__ ((packed)) esp8266_queue_s {
     uint16_t esp8266_queue_capacity;
     uint16_t esp8266_queue_size;
 
-    esp8266_queue_state_t esp8266__queue_status;
+    esp8266_queue_state_t esp8266_queue_status;
 
 } esp8266_queue_t;
 
@@ -137,7 +137,7 @@ esp8266_status_t esp8266_queueGet(uint8_t *data);
  *  @param len the number of bytes to send
  *  @return a return code of type esp8266_status_t
  */
-esp8266_status_t esp8266_Send(esp8266_topic_t *esp_topic, uint8_t *data, uint32_t len);
+esp8266_status_t esp8266_Send(esp8266_topic_t esp_topic, uint8_t *data, uint32_t len);
 
 /** @brief Initialize the ESP8266 driver
  *
