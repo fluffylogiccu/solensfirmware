@@ -121,7 +121,7 @@ typedef struct {
 	int rem_len;
 	int len;
 	char state;
-}MQTTTransport;
+} MQTTTransport;
 
 int MQTTPacket_readnb(unsigned char* buf, int buflen, MQTTTransport *trp);
 

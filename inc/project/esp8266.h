@@ -20,7 +20,7 @@
 #include "wifi.h"
 #include <stdint.h>
 
-#define ESP8266_BAUDRATE 921600*2
+#define ESP8266_BAUDRATE 115200
 #define ESP8266_QUEUE_CAP 256
 
 typedef enum esp8266_topic_e {ESP8266_IMAGE, ESP8266_HEALTH} esp8266_topic_t;

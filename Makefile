@@ -36,11 +36,11 @@ CAMERA=OV5642
 # Wifi Module
 # Options are ESP8266, NONE
 # Default is NONE
-WIFI=NONE
+WIFI=ESP8266
 
 # Discovery board 
 # Options are STM32F429I_DISCOVERY, S0LENS_A
-BOARD=STM32F429I_DISCOVERY
+BOARD=S0LENS_A
 
 # VARIABLES
 # -----------------

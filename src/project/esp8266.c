@@ -17,17 +17,19 @@
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_usart.h"
 #include "wifi.h"
+#include "log.h"
 #include "MQTTPacket.h"
 #include <stdint.h>
+#include <stdlib.h>
 
 // UART queue
 static esp8266_queue_t *esp8266_queue;
 
 // MQTT connection initializer
-static MQTTPacket_connectData esp8266_mqtt;
+static MQTTPacket_connectData esp8266_mqtt = MQTTPacket_connectData_initializer;
 
 // MQTT topic initializer
-static MQTTString esp8266_mqttTopic;
+static MQTTString esp8266_mqttTopic = MQTTString_initializer;
 
 // MQTT message buffer
 uint8_t esp8266_mqttBuf[200];
@@ -65,12 +67,15 @@ esp8266_status_t esp8266_uartSend(uint8_t *data, uint32_t len) {
         USART_SendData(USART1, *(data+i));
         i++;
     }
+
+    return ESP8266_INFO_OK;
 }
 
 esp8266_status_t esp8266_uartInit() {
     GPIO_InitTypeDef GPIO_InitStructure;
     USART_InitTypeDef USART_InitStructure;
-
+    NVIC_InitTypeDef NVIC_InitStructure;
+        
     #ifdef __STM32F429I_DISCOVERY
     // Enable GPIO clock
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
@@ -81,6 +86,9 @@ esp8266_status_t esp8266_uartInit() {
     // Connect Pin A9 to USART1 Tx
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_USART1);
 
+    // Connect Pin B7 to USART1 Rx
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_USART1);
+
     // Configure USART Tx as alternate function
     GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
     GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
@@ -89,15 +97,33 @@ esp8266_status_t esp8266_uartInit() {
     GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
 
+    // Configure USART Rx as alternate function
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
     USART_InitStructure.USART_BaudRate = ESP8266_BAUDRATE;
     USART_InitStructure.USART_WordLength = USART_WordLength_8b;
     USART_InitStructure.USART_StopBits = USART_StopBits_1;
     USART_InitStructure.USART_Parity = USART_Parity_No;
     USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    USART_InitStructure.USART_Mode = (USART1->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Tx;
+    USART_InitStructure.USART_Mode = (USART1->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Tx | USART_Mode_Rx;
 
     // USART configuration
     USART_Init(USART1, &USART_InitStructure);
+
+    // Enable Rx interrupts
+    USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+    
+    // Initialize interrupts
+    NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
 
     // Enable USART
     USART_Cmd(USART1, ENABLE);
@@ -115,6 +141,9 @@ esp8266_status_t esp8266_uartInit() {
     // Connect Pin A9 to USART1 Tx
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_USART1);
 
+    // Connect Pin B7 to USART1 Rx
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_USART1);
+
     // Configure USART Tx as alternate function
     GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
     GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
@@ -123,15 +152,33 @@ esp8266_status_t esp8266_uartInit() {
     GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
 
+    // Configure USART Rx as alternate function
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
     USART_InitStructure.USART_BaudRate = ESP8266_BAUDRATE;
     USART_InitStructure.USART_WordLength = USART_WordLength_8b;
     USART_InitStructure.USART_StopBits = USART_StopBits_1;
     USART_InitStructure.USART_Parity = USART_Parity_No;
     USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    USART_InitStructure.USART_Mode = (USART1->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Tx;
+    USART_InitStructure.USART_Mode = (USART1->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Tx | USART_Mode_Rx;
 
     // USART configuration
     USART_Init(USART1, &USART_InitStructure);
+
+    // Enable Rx interrupts
+    USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+    
+    // Initialize interrupts
+    NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
 
     // Enable USART
     USART_Cmd(USART1, ENABLE);
@@ -143,9 +190,7 @@ esp8266_status_t esp8266_uartInit() {
 }
 
 esp8266_status_t esp8266_mqttInit() {
-    esp8266_mqtt = MQTTPacket_connectData_initializer;
     esp8266_mqttLen = sizeof(esp8266_mqttBuf);
-    esp8266_mqttTopic = MQTTString_initializer;
     
     esp8266_mqtt.clientID.cstring = "Ben";
     esp8266_mqtt.keepAliveInterval = 20;
@@ -155,6 +200,10 @@ esp8266_status_t esp8266_mqttInit() {
    
     uint32_t len = MQTTSerialize_connect(esp8266_mqttBuf, esp8266_mqttLen, &esp8266_mqtt);
     esp8266_status_t ret = esp8266_uartSend(esp8266_mqttBuf, len);
+
+    if (ret != ESP8266_INFO_OK) {
+        return ret;
+    }
 
     if (MQTTPacket_read(esp8266_mqttBuf, esp8266_mqttLen, esp8266_uartBufRead) == CONNACK) {
         unsigned char sessionPresent, connack_rc;
@@ -181,7 +230,7 @@ esp8266_status_t esp8266_queueInit() {
     }
 
     esp8266_queue->esp8266_queue_buf = NULL;
-    esp8266_queue->esp8266_queue_buf = (uint8_t *) malloc(sizeof(esp8266_esp8266_t *)*ESP8266_QUEUE_CAP);
+    esp8266_queue->esp8266_queue_buf = (uint8_t *) malloc(sizeof(uint8_t)*ESP8266_QUEUE_CAP);
     if (esp8266_queue->esp8266_queue_buf == NULL) {
         log_Log(ESP8266, ESP8266_ERR_MALLOC, "Couldn't initialize esp8266_queue_buf memory.\0");
         return ESP8266_ERR_MALLOC;
@@ -192,10 +241,6 @@ esp8266_status_t esp8266_queueInit() {
     esp8266_queue->esp8266_queue_capacity = ESP8266_QUEUE_CAP;
     esp8266_queue->esp8266_queue_size = 0;
     esp8266_queue->esp8266_queue_status = ESP8266_QUEUE_EMPTY;
-
-    #ifndef __ESP8266
-    esp8266_initialized = 1;
-    #endif
 
     return ESP8266_INFO_OK;
 }
@@ -237,14 +282,14 @@ esp8266_status_t esp8266_queuePut(uint8_t data) {
 
 esp8266_status_t esp8266_queueGet(uint8_t *data) {
     // Check for valud esp8266 pointer
-    if (esp8266 == NULL) {
-        log_Log(ESP8266, ESP8266_ERR_NULLPTR, "Invalid command pointer in parameter list for esp8266_queueGet.\0");
+    if (data == NULL) {
+        log_Log(ESP8266, ESP8266_ERR_NULLPTR, "Invalid data pointer in parameter list for esp8266_queueGet.\0");
         return ESP8266_ERR_NULLPTR;
     }
 
     // Check if queue is empty
     if (esp8266_queue->esp8266_queue_status == ESP8266_QUEUE_EMPTY) {
-        log_Log(ESP8266, ESP8266_ERR_QUEUEEMPTY, "Trying to get from an empty command queue.\0");
+        log_Log(ESP8266, ESP8266_ERR_QUEUEEMPTY, "Trying to get from an empty MQTT queue.\0");
         return ESP8266_ERR_QUEUEEMPTY;
     }
 
@@ -273,21 +318,19 @@ esp8266_status_t esp8266_queueGet(uint8_t *data) {
 /**************************************
  * Public functions
  */
-void USART2_IRQHandler(void) {
+void USART1_IRQHandler(void) {
     if (USART_GetITStatus(USART1, USART_IT_RXNE)) {
         uint8_t ch = USART1->DR;
         esp8266_queuePut(ch);
-		// Save to circular buffer
+        log_Log(ESP8266, ESP8266_INFO_OK, "recieved char\0");
     }
 }
 
 esp8266_status_t esp8266_Send(esp8266_topic_t topic, uint8_t *data, uint32_t len) {
-	uint32_t i = 0;
-
-    if (topic == IMAGE) {
+    if (topic == ESP8266_IMAGE) {
         esp8266_mqttTopic.cstring = "image";
-        uint8_t msgLen = MQTTSerialize_publish(esp8266_mqttBuf, esp8266_mqttLen, 0, 0, 0, 0, esp8266_mqttTopic, data, len);
-        esp8266_status_t ret = esp8266_uartSend(esp8266_mqttBuf, b);
+        uint8_t msgLen = MQTTSerialize_publish(esp8266_mqttBuf, esp8266_mqttLen, 0, 0, 1, 0, esp8266_mqttTopic, data, len);
+        esp8266_status_t ret = esp8266_uartSend(esp8266_mqttBuf, msgLen);
         if (ret != ESP8266_INFO_OK) {
             return ret;
         }

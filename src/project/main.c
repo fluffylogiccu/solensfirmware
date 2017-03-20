@@ -29,8 +29,9 @@
 #include "wifi.h"
 #endif
 #include "cam.h"
-
 #include <stdint.h>
+
+#include "esp8266.h"
 
 /**************************************
  * Private functions
@@ -117,6 +118,8 @@ int main() {
         log_Log(WIFI, w_st, "Could not initialize wifi module.\0");
     }
     #endif
+
+    esp8266_status_t esp_st = esp8266_uartSend("abcdefg123456\0", 13);
 
     // Start main loop
     cmd_status_t cmd_st = cmd_Loop();
