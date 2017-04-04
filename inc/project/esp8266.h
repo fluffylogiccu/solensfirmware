@@ -20,7 +20,7 @@
 #include "wifi.h"
 #include <stdint.h>
 
-#define ESP8266_BAUDRATE 9600
+#define ESP8266_BAUDRATE 115200
 
 /**************************************
  * @name Private functions
