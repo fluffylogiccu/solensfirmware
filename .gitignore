@@ -44,3 +44,4 @@ doc/latex/*
 
 # Other
 host/__pycache__/*
+host/paho-mqtt/*
