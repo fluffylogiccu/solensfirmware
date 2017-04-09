@@ -36,11 +36,11 @@ CAMERA=OV5642
 # Wifi Module
 # Options are ESP8266, NONE
 # Default is NONE
-WIFI=NONE
+WIFI=ESP8266
 
-# Discovery board 
+# Discovery board
 # Options are STM32F429I_DISCOVERY, S0LENS_A
-BOARD=STM32F429I_DISCOVERY
+BOARD=S0LENS_A
 
 # VARIABLES
 # -----------------
@@ -50,26 +50,26 @@ COMP_FLAGS = STM32F429_439xx USE_STDPERIPH_DRIVER HSE_VALUE=8000000
 ifeq ($(DEBUG),FALSE)
   DEBUG_FLAGS = -O2
 else
-  ifeq ($(DEBUG),TRUE) 
+  ifeq ($(DEBUG),TRUE)
     DEBUG_FLAGS = -g
 
 
-    ifneq ($(LOG),NONE) 
+    ifneq ($(LOG),NONE)
       ifeq ($(LOG),INFO)
-        COMP_FLAGS += __LOG __LOG_INFO 
+        COMP_FLAGS += __LOG __LOG_INFO
       else
         ifeq ($(LOG),WARN)
           COMP_FLAGS += __LOG __LOG_WARN
         else
           ifeq ($(LOG),ERR)
             COMP_FLAGS += __LOG __LOG_ERR
-          else 
+          else
             $(error Bad value for LOG)
           endif
         endif
       endif
     endif
-  
+
 
     ifeq ($(CMD),TRUE)
       COMP_FLAGS += __CMD
@@ -89,7 +89,7 @@ else
 
     ifeq ($(TEST),TRUE)
 	  COMP_FLAGS += __TEST
-    else  
+    else
       ifneq ($(TEST),FALSE)
 	    $(error, Bad value for TEST)
       endif
@@ -158,7 +158,7 @@ build: $(BIN_DIR)/$(PROJ_NAME).elf
 
 $(BIN_DIR)/$(PROJ_NAME).elf: $(addprefix $(BUILD_DIR)/, $(OBJS))
 	@$ $(MKDIR_P) $(BIN_DIR)
-	$(CC) $(CFLAGS) $^ -o $@ 
+	$(CC) $(CFLAGS) $^ -o $@
 	$(OBJCOPY) -O ihex $(BIN_DIR)/$(PROJ_NAME).elf $(BIN_DIR)/$(PROJ_NAME).hex
 	$(OBJCOPY) -O binary $(BIN_DIR)/$(PROJ_NAME).elf $(BIN_DIR)/$(PROJ_NAME).bin
 

@@ -1,7 +1,7 @@
 /** @file esp8266.c
  *  @brief Implemenation of the esp8266 driver
  *
- *  This contains the implementations of the 
+ *  This contains the implementations of the
  *  esp8266 driver functions.
  *
  *  @author Ben Heberlein
@@ -19,9 +19,201 @@
 #include "wifi.h"
 #include <stdint.h>
 
+
+slip_protocol_t *proto;
+uint8_t protoBuf[128];
+uart_buffer_t *rxBuffer;
+uint16_t crc;
+
 /**************************************
  * Private functions
  */
+
+
+void Slip_Init(){
+	proto->buf = protoBuf;
+	proto->bufSize = sizeof(protoBuf);
+	proto->dataLen = 0;
+	proto->isEsc = 0;
+}
+void Slip_Write_Byte(uint8_t data){
+	switch(data){
+		case SLIP_END:
+		USART_SendData(USART1, SLIP_ESC);
+		USART_SendData(USART1, SLIP_ESC_END);
+		break;
+		case SLIP_ESC:
+		USART_SendData(USART1, SLIP_ESC);
+		USART_SendData(USART1, SLIP_ESC_ESC);
+		break;
+		default:
+		USART_SendData(USART1, data);
+	}
+}
+
+void Slip_Write(void *data, uint16_t len){
+	uint8_t *d = (uint8_t*)data;
+	while(len--){
+		Slip_Write_Byte(*d++);
+	}
+}
+
+void USART_Buffer_Init(uint16_t capacity){
+	rxBuffer->capacity = capacity;
+	rxBuffer->count = 0;
+	rxBuffer->buf = (uint8_t*)malloc(capacity * 8);
+	rxBuffer->head = rxBuffer->buf;
+	rxBuffer->tail = rxBuffer->buf;
+	rxBuffer->bufEnd = rxBuffer->buf + capacity * 8;
+}
+
+void USART_Buffer_Free(){
+	free(rxBuffer->buf);
+	rxBuffer->capacity = 0;
+	rxBuffer->count = 0;
+	rxBuffer->head = NULL;
+	rxBuffer->tail = NULL;
+	rxBuffer->bufEnd = NULL;
+}
+
+uint16_t USART_Buffer_Available(){
+	if(rxBuffer->buf != NULL){
+		return rxBuffer->count;
+	}
+	else{
+		//Buffer not initialized
+		return 0;
+	}
+}
+
+void USART_Buffer_Push(uint8_t data){
+	if(rxBuffer->count == rxBuffer->capacity){
+		//Buffer is full
+		return;
+	}
+	*(rxBuffer->head) = data;
+	rxBuffer->head++;
+	if(rxBuffer->head == rxBuffer->bufEnd){
+		rxBuffer->head = rxBuffer->buf;
+	}
+	rxBuffer->count++;
+}
+
+uint8_t USART_Buffer_Pop8(void){
+	if(rxBuffer->count == 0){
+		//Buffer is empty
+		return -1;
+	}
+	uint8_t item = *(rxBuffer->tail);
+	rxBuffer->tail++;
+	if(rxBuffer->tail == rxBuffer->bufEnd){
+		rxBuffer->tail = rxBuffer->buf;
+	}
+	rxBuffer->count--;
+	return item;
+}
+
+uint16_t USART_Buffer_Pop16(void){
+	if(rxBuffer->count == 0){
+		//Buffer is empty
+		return -1;
+	}
+	uint16_t item = (uint16_t)*(rxBuffer->tail);
+	rxBuffer->tail++;
+	if(rxBuffer->tail == rxBuffer->bufEnd){
+		rxBuffer->tail = rxBuffer->buf;
+	}
+	rxBuffer->count--;
+	if(rxBuffer->count == 0){
+		//Buffer only had one byte
+		return item;
+	} else {
+		item |= (*(rxBuffer->tail) << 8);
+		rxBuffer->tail++;
+		if(rxBuffer->tail == rxBuffer->bufEnd){
+			rxBuffer->tail = rxBuffer->buf;
+		}
+		rxBuffer->count--;
+		return item;
+	}
+}
+
+void USART1_IRQHandler(void) {
+    if(USART_GetITStatus(USART1, USART_IT_RXNE)){
+		uint8_t ch = USART1->DR;
+		USART_Buffer_Push(ch);
+    }
+}
+
+
+uint16_t crc16Add(unsigned char b, uint16_t acc)
+{
+  acc ^= b;
+  acc = (acc >> 8) | (acc << 8);
+  acc ^= (acc & 0xff00) << 4;
+  acc ^= (acc >> 8) >> 4;
+  acc ^= (acc & 0xff00) >> 5;
+  return acc;
+}
+
+uint16_t crc16Data(const unsigned char *data, uint16_t len, uint16_t acc)
+{
+  for (uint16_t i=0; i<len; i++)
+    acc = crc16Add(*data++, acc);
+  return acc;
+}
+
+slip_packet_t *protoCompletedCb(void){
+    slip_packet_t *packet = (slip_packet_t*)proto->buf;
+    uint16_t crc = crc16Data(proto->buf, proto->dataLen-2, 0);
+
+    uint16_t resp_crc = *(uint16_t*)(proto->buf+proto->dataLen-2);
+    if(crc != resp_crc){
+        return NULL;
+    }
+    switch(packet->cmd){
+        case CMD_RESP_V:
+            return packet;
+        case CMD_RESP_CB:
+            //Here is where they return a callback function
+            return NULL;
+        case CMD_SYNC:
+            //esp-link not in sync
+            //TODO: implement sync function
+            return NULL;
+        default:
+            //command not implemented
+            return NULL;
+    }
+}
+
+slip_packet_t *Slip_Process(){
+    int value;
+    while(USART_Buffer_Available() > 0){
+        value = USART_Buffer_Pop16();
+        if(value == SLIP_ESC){
+            proto->isEsc = 1;
+        } else if (value == SLIP_END){
+            slip_packet_t *packet = proto->dataLen >= 8 ? protoCompletedCb() : 0;
+            proto->dataLen = 0;
+            proto->isEsc = 0;
+            if(packet != NULL)return packet;
+        } else {
+            if(proto->isEsc){
+                if(value == SLIP_ESC_END) value = SLIP_END;
+                if(value == SLIP_ESC_ESC) value = SLIP_ESC;
+                proto->isEsc = 0;
+            }
+            if(proto->dataLen < proto->bufSize){
+                proto->buf[proto->dataLen++] = value;
+            }
+        }
+    }
+    return NULL;
+}
+
+
+
 
 /**************************************
  * Public functions
@@ -61,7 +253,7 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
     while (i < fourthSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
         // Delay of 100 works for lab computers
-        if (i % 100 == 0) {        
+        if (i % 100 == 0) {
             for (uint32_t j = 0; j < 1000; j++) {}
         }
         USART_SendData(USART1, *(wifi_packet->wifi_packet_data+i));
@@ -73,29 +265,29 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
     // Send data serially
     while (i < firstSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        USART_SendData(USART1, *(((uint8_t *)wifi_packet)+i));
+        Slip_Write_Byte(*(((uint8_t *)wifi_packet)+i));
         i++;
     }
     i = 0;
     while (i < secondSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        USART_SendData(USART1, *(wifi_packet->wifi_packet_msg+i));
+        Slip_Write_Byte(*(wifi_packet->wifi_packet_msg+i));
         i++;
     }
     i = firstSize + sizeof(wifi_packet->wifi_packet_msg);
     while (i < thirdSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        USART_SendData(USART1, *(((uint8_t *)wifi_packet)+i));
+        Slip_Write_Byte(*(((uint8_t *)wifi_packet)+i));
         i++;
     }
     i = 0;
     while (i < fourthSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
         // Delay of 100 works for lab computers
-        if (i % 100 == 0) {        
+        if (i % 100 == 0) {
             for (uint32_t j = 0; j < 1000; j++) {}
         }
-        USART_SendData(USART1, *(wifi_packet->wifi_packet_data+i));
+        Slip_Write_Byte( *(wifi_packet->wifi_packet_data+i));
         i++;
     }
     #endif
@@ -164,16 +356,64 @@ esp8266_status_t esp8266_Init() {
     USART_InitStructure.USART_StopBits = USART_StopBits_1;
     USART_InitStructure.USART_Parity = USART_Parity_No;
     USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    USART_InitStructure.USART_Mode = (USART1->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Tx;
+    USART_InitStructure.USART_Mode = (USART1->CR1 & (USART_CR1_RE | USART_CR1_TE)) | USART_Mode_Tx | USART_Mode_Rx;
 
     // USART configuration
     USART_Init(USART1, &USART_InitStructure);
 
+	// Enable Rx interrupts
+	USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+
+	NVIC_InitTypeDef NVIC_InitStructure;
+
+	// Initialize interrupts
+	NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+
     // Enable USART
     USART_Cmd(USART1, ENABLE);
+
+	//Init WiFi Rx circular buffer
+	USART_Buffer_Init(100);
+
+	//Setup SLIP
+	Slip_Init();
 
     #endif
 
 	return ESP8266_INFO_OK;
 }
 
+void Slip_Request(uint16_t cmd, uint32_t value, uint16_t argc){
+	crc = 0;
+	USART_SendData(USART1, SLIP_END);
+	Slip_Write(&cmd, 2);
+	crc = crc16Data((unsigned const char*)&cmd, 2, crc);
+
+	Slip_Write(&argc, 2);
+	crc = crc16Data((unsigned const char*)&argc, 2, crc);
+
+	Slip_Write(&value, 4);
+	crc = crc16Data((unsigned const char*)&value, 4, crc);
+}
+
+slip_packet_t *Slip_Wait_Return(void){
+	uint32_t count = 0;
+	while(count < ESP_TIMEOUT){
+		slip_packet_t *packet = Slip_Process();
+		if(packet != NULL) return packet;
+		count++;
+	}
+	return NULL;
+}
+
+uint32_t GetTime(){
+	Slip_Request(CMD_GET_TIME, 0, 0);
+	USART_SendData(USART1, SLIP_END);
+
+	slip_packet_t *pkt = Slip_Wait_Return();
+	return pkt ? pkt->value : 0;
+}
