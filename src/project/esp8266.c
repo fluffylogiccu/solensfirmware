@@ -339,7 +339,7 @@ esp8266_status_t esp8266_Init() {
     #ifdef __S0LENS_A
 
     // Enable GPIO clock
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA | RCC_AHB1Periph_GPIOB, ENABLE);
 
     // Enable USART1 Clock
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
@@ -354,6 +354,17 @@ esp8266_status_t esp8266_Init() {
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
     GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    // Connect Pin B7 to USART1 Rx
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_USART1);
+
+    // Configure USART Tx as alternate function
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Medium_Speed;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
 
     USART_InitStructure.USART_BaudRate = ESP8266_BAUDRATE;
     USART_InitStructure.USART_WordLength = USART_WordLength_8b;
