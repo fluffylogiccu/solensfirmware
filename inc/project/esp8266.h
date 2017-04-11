@@ -20,13 +20,14 @@
 #include "wifi.h"
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #define ESP8266_BAUDRATE 115200
 #define SLIP_END      0300    /**< Indicates end of packet */
 #define SLIP_ESC      0333    /**< Indicates byte stuffing */
 #define SLIP_ESC_END  0334    /**< ESC ESC_END means END data byte */
 #define SLIP_ESC_ESC  0335    /**< ESC ESC_ESC means ESC data byte */
-#define ESP_TIMEOUT 200000 /**< Default timeout for TCP requests when waiting for a response */
+#define ESP_TIMEOUT 2000 /**< Default timeout for TCP requests when waiting for a response */
 
 // Enumeration of commands supported by esp-link, this needs to match the definition in
 // esp-link!
@@ -196,7 +197,7 @@ slip_packet_t *protoCompletedCb(void);
 
 slip_packet_t *Slip_Process(void);
 
-
+void Safe_Send(uint16_t data);
 
 
 /**************************************
@@ -222,6 +223,11 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet);
  *  @return a return code of type esp8266_status_t
  */
 esp8266_status_t esp8266_Init();
+
+/** @brief Handshake with the esp-link
+ *
+ */
+ bool Esp_Sync();
 
 /** @brief Write byte data to UART1 using SLIP
  *
@@ -259,6 +265,11 @@ void Slip_Request(uint16_t cmd, uint32_t value, uint16_t argc);
  */
 slip_packet_t *Slip_Wait_Return(void);
 
+
+void Esp_WifiCb(void *response);
+
+void Esp_ResetCb(void);
+
 /** @brief Modified GetTime function from el-client
  *
  *  Sends a request to the ESP8266 for the time
@@ -267,6 +278,6 @@ slip_packet_t *Slip_Wait_Return(void);
  *
  *  @return none
  */
-
+uint32_t GetTime();
 
 # endif /* _ESP8266__H */

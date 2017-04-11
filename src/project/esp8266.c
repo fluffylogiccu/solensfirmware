@@ -24,6 +24,7 @@ slip_protocol_t *proto;
 uint8_t protoBuf[128];
 uart_buffer_t *rxBuffer;
 uint16_t crc;
+bool syncing = false;
 
 /**************************************
  * Private functions
@@ -39,15 +40,15 @@ void Slip_Init(){
 void Slip_Write_Byte(uint8_t data){
 	switch(data){
 		case SLIP_END:
-		USART_SendData(USART1, SLIP_ESC);
-		USART_SendData(USART1, SLIP_ESC_END);
+		Safe_Send(SLIP_ESC);
+		Safe_Send(SLIP_ESC_END);
 		break;
 		case SLIP_ESC:
-		USART_SendData(USART1, SLIP_ESC);
-		USART_SendData(USART1, SLIP_ESC_ESC);
+		Safe_Send(SLIP_ESC);
+		Safe_Send(SLIP_ESC_ESC);
 		break;
 		default:
-		USART_SendData(USART1, data);
+		Safe_Send(data);
 	}
 }
 
@@ -123,7 +124,7 @@ uint16_t USART_Buffer_Pop16(void){
 	if(rxBuffer->tail == rxBuffer->bufEnd){
 		rxBuffer->tail = rxBuffer->buf;
 	}
-	rxBuffer->count--;
+	rxBuffer->count = rxBuffer->count - 1;
 	if(rxBuffer->count == 0){
 		//Buffer only had one byte
 		return item;
@@ -179,7 +180,7 @@ slip_packet_t *protoCompletedCb(void){
             return NULL;
         case CMD_SYNC:
             //esp-link not in sync
-            //TODO: implement sync function
+            Esp_ResetCb();
             return NULL;
         default:
             //command not implemented
@@ -188,7 +189,7 @@ slip_packet_t *protoCompletedCb(void){
 }
 
 slip_packet_t *Slip_Process(){
-    int value;
+    uint16_t value;
     while(USART_Buffer_Available() > 0){
         value = USART_Buffer_Pop16();
         if(value == SLIP_ESC){
@@ -212,7 +213,10 @@ slip_packet_t *Slip_Process(){
     return NULL;
 }
 
-
+void Safe_Send(uint16_t data){
+	while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
+	USART_SendData(USART1, data);
+}
 
 
 /**************************************
@@ -382,14 +386,41 @@ esp8266_status_t esp8266_Init() {
 	//Setup SLIP
 	Slip_Init();
 
+	//Sync with esp-link
+	bool esp_status = Esp_Sync();
+
     #endif
 
 	return ESP8266_INFO_OK;
 }
 
+bool Esp_Sync(){
+	if(!syncing){
+		Safe_Send(SLIP_END);
+
+		//Sync request
+		Slip_Request(CMD_SYNC, (uint32_t)&Esp_WifiCb, 0);
+		Slip_Write((uint8_t*)&crc, 2);
+		Safe_Send(SLIP_END);
+
+		syncing = true;
+
+		slip_packet_t *packet;
+		while((packet = Slip_Wait_Return()) != NULL){
+			if(packet->value == (uint32_t)&Esp_WifiCb){
+				syncing = false;
+				return true;
+			}
+		}
+		syncing = false;
+		return false;
+	}
+	return false;
+}
+
 void Slip_Request(uint16_t cmd, uint32_t value, uint16_t argc){
 	crc = 0;
-	USART_SendData(USART1, SLIP_END);
+	Safe_Send(SLIP_END);
 	Slip_Write(&cmd, 2);
 	crc = crc16Data((unsigned const char*)&cmd, 2, crc);
 
@@ -410,9 +441,23 @@ slip_packet_t *Slip_Wait_Return(void){
 	return NULL;
 }
 
+void Esp_WifiCb(void *response){
+	//Function that will be called when the wifi changes state
+}
+
+void Esp_ResetCb(void){
+	//Callback that gets called when the esp gets reset and we need to sync
+	bool ok = false;
+	do {
+		ok = Esp_Sync();
+	} while(!ok);
+}
+
 uint32_t GetTime(){
 	Slip_Request(CMD_GET_TIME, 0, 0);
-	USART_SendData(USART1, SLIP_END);
+	Slip_Write((uint8_t*)&crc, 2);
+	Safe_Send(SLIP_END);
+
 
 	slip_packet_t *pkt = Slip_Wait_Return();
 	return pkt ? pkt->value : 0;

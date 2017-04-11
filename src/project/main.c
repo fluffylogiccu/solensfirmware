@@ -1,7 +1,7 @@
 /* @file main.c
  *  @brief This file contains the main routine.
  *
- *  This initializes the logger, command interface, 
+ *  This initializes the logger, command interface,
  *  SDRAM, and starts the main command loop based on
  *  compile-time flags.
  *
@@ -28,6 +28,9 @@
 #ifdef __WIFI
 #include "wifi.h"
 #endif
+#ifdef __ESP8266
+#include "esp8266.h"
+#endif
 #include "cam.h"
 
 #include <stdint.h>
@@ -47,7 +50,7 @@ int main() {
     #ifdef __LOG
         test_log();
     #endif
-    
+
     #ifdef __PROF
         test_prof();
     #endif
@@ -60,7 +63,7 @@ int main() {
         log_Log(LOG, LOG_INFO_OK, "Initialized logger.\0");
     } else if (l_st == LOG_WARN_ALINIT) {
         log_Log(LOG, LOG_WARN_ALINIT, "Already initialized logger.\0");
-    } else {            
+    } else {
         return -1;
     }
     #endif
@@ -111,6 +114,9 @@ int main() {
     wifi_status_t w_st = wifi_Init();
     if (w_st == WIFI_INFO_OK) {
         log_Log(WIFI, WIFI_INFO_OK, "Initialized wifi module.\0");
+        log_Log(WIFI, WIFI_INFO_OK, "Getting time from esp.\0");
+        uint32_t ntptime = GetTime();
+        log_Log(WIFI, WIFI_INFO_OK, "Returned from GetTime.\0");
     } else if (w_st == WIFI_WARN_ALINIT) {
         log_Log(WIFI, WIFI_WARN_ALINIT, "Wifi module already initialized.\0");
     } else {
@@ -121,11 +127,9 @@ int main() {
     // Start main loop
     cmd_status_t cmd_st = cmd_Loop();
     if (cmd_st != CMD_INFO_OK) {
-        log_Log(CMD, cmd_st, "Exiting main.\0");   
+        log_Log(CMD, cmd_st, "Exiting main.\0");
         return -3;
     }
 
     return 0;
 }
-
-
