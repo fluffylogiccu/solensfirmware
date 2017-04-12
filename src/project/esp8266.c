@@ -19,6 +19,7 @@
 #include "wifi.h"
 #include <stdint.h>
 #include "log.h"
+#include <string.h>
 
 
 slip_protocol_t proto;
@@ -161,9 +162,20 @@ slip_packet_t *esp8266_protoCompletedCb(void){
             return packet;
         case CMD_RESP_CB:
             //Here is where they return a callback function
+			//They do some crazy stuff with function pointers and I am
+			//content with this if statement since we have limited funciton
+			//callbacks to keep track of
 			if(packet->value == (uint32_t)&esp8266_WifiCb){
 				wifi_status_t wifi_status = esp8266_WifiCb(packet);
 				log_Log(WIFI, wifi_status);
+			} else if(packet->value == (uint32_t)&mqtt_connected_callback){
+				mqtt_connected_callback(packet);
+			} else if(packet->value == (uint32_t)&mqtt_disconnnected_callback){
+				mqtt_disconnnected_callback(packet);
+			} else if(packet->value == (uint32_t)&mqtt_published_callback){
+				mqtt_published_callback(packet);
+			} else if(packet->value == (uint32_t)&mqtt_data_callback){
+				mqtt_data_callback(packet);
 			}
             return NULL;
         case CMD_SYNC:
@@ -392,6 +404,12 @@ esp8266_status_t esp8266_Init() {
 
 	uint32_t ntptime = esp8266_GetTime();
 
+
+	mqtt_setup();
+
+	uint8_t buf[12] = "Testmessage\0";
+	mqtt_publish("test topic", buf, 12, 1, 1);
+
     #endif
 
 	return ESP8266_INFO_OK;
@@ -421,7 +439,7 @@ bool esp8266_Sync(){
 	return false;
 }
 
-esp8266_status_t esp8266_Request(uint16_t cmd, uint32_t value, uint16_t argc){
+void esp8266_Request(uint16_t cmd, uint32_t value, uint16_t argc){
 	crc = 0;
 	esp8266_Raw_Send(SLIP_END);
 	esp8266_Write_Slip(&cmd, 2);
@@ -432,7 +450,35 @@ esp8266_status_t esp8266_Request(uint16_t cmd, uint32_t value, uint16_t argc){
 
 	esp8266_Write_Slip(&value, 4);
 	crc = crc16Data((unsigned const char*)&value, 4, crc);
-	return ESP8266_INFO_OK;
+}
+
+void esp8266_Request2(const void* data, uint16_t len){
+	uint8_t *d = (uint8_t*)data;
+
+	//write the length
+	esp8266_Write_Slip(&len, 2);
+	crc = crc16Data((unsigned const char*)&len, 2, crc);
+
+	//output the data
+	for(uint16_t l=len; l>0; l--){
+		esp8266_Write_Slip_Byte(*d);
+		crc = crc16Add(*d, crc);
+		d++;
+	}
+
+	//output padding
+	uint16_t pad = (4-(len&3))&3;
+	uint8_t temp = 0;
+	while(pad--){
+		esp8266_Write_Slip_Byte(temp);
+		crc = crc16Add(temp, crc);
+	}
+
+}
+
+void esp8266_Request0(void){
+	esp8266_Write_Slip((uint8_t*)&crc, 2);
+	esp8266_Raw_Send(SLIP_END);
 }
 
 slip_packet_t *esp8266_Wait_Return(void){
@@ -486,10 +532,70 @@ void esp8266_ResetCb(void){
 
 uint32_t esp8266_GetTime(){
 	esp8266_Request(CMD_GET_TIME, 0, 0);
-	esp8266_Write_Slip((uint8_t*)&crc, 2);
-	esp8266_Raw_Send(SLIP_END);
+	esp8266_Request0();
 
 
 	slip_packet_t *pkt = esp8266_Wait_Return();
 	return pkt ? pkt->value : 0;
+}
+
+/* MQTT */
+void mqtt_setup(void){
+	esp8266_Request(CMD_MQTT_SETUP, 0, 4);
+	uint32_t cb = (uint32_t)&mqtt_connected_callback;
+	esp8266_Request2(&cb, 4);
+	cb = (uint32_t)&mqtt_disconnnected_callback;
+	esp8266_Request2(&cb, 4);
+	cb = (uint32_t)&mqtt_published_callback;
+	esp8266_Request2(&cb, 4);
+	cb = (uint32_t)&mqtt_data_callback;
+	esp8266_Request2(&cb, 4);
+	esp8266_Request0();
+}
+
+void mqtt_lwt(const char* topic, const char* message, uint8_t qos, uint8_t retain){
+	esp8266_Request(CMD_MQTT_LWT, 0, 4);
+	esp8266_Request2(topic, strlen(topic));
+	esp8266_Request2(message, strlen(message));
+	esp8266_Request2(&qos, 1);
+	esp8266_Request2(&retain, 1);
+	esp8266_Request0();
+
+}
+
+void mqtt_subscribe(const char* topic, uint8_t qos){
+	esp8266_Request(CMD_MQTT_SUBSCRIBE, 0, 2);
+	esp8266_Request2(topic, strlen(topic));
+	esp8266_Request2(&qos, 1);
+	esp8266_Request0();
+}
+
+void mqtt_publish(const char* topic, const uint8_t* data, const uint16_t len, uint8_t qos, uint8_t retain){
+	esp8266_Request(CMD_MQTT_PUBLISH, 0, 5);
+	esp8266_Request2(topic, strlen(topic));
+	esp8266_Request2(data, len);
+	esp8266_Request2(&len, 2);
+	esp8266_Request2(&qos, 1);
+	esp8266_Request2(&retain, 1);
+	esp8266_Request0();
+}
+
+/*	These are the client specific callback functions
+*	They are business logic to deal with mqtt events
+*	and most will just log information.
+*/
+void mqtt_connected_callback(void *response){
+	log_Log(WIFI, WIFI_INFO_OK, "MQTT connected!\0");
+}
+
+void mqtt_disconnnected_callback(void *response){
+	log_Log(WIFI, WIFI_INFO_OK, "MQTT disconnected :'(\0");
+}
+
+void mqtt_published_callback(void *response){
+	log_Log(WIFI, WIFI_INFO_OK, "MQTT published.\0");
+}
+
+void mqtt_data_callback(void *response){
+	log_Log(WIFI, WIFI_INFO_OK, "MQTT data.\0");
 }

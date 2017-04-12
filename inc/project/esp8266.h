@@ -249,7 +249,9 @@ esp8266_status_t esp8266_Raw_Send(uint16_t data);
  *
  *  @return none
  */
-esp8266_status_t esp8266_Request(uint16_t cmd, uint32_t value, uint16_t argc);
+void esp8266_Request(uint16_t cmd, uint32_t value, uint16_t argc);
+void esp8266_Request2(const void* data, uint16_t len);
+void esp8266_Request0(void);
 
 /** @brief Modified WaitReturn function from el-client
  *
@@ -274,5 +276,24 @@ void esp8266_ResetCb(void);
  *  @return none
  */
 uint32_t esp8266_GetTime();
+
+
+
+/* MQTT */
+void mqtt_setup(void);
+
+void mqtt_lwt(const char* topic, const char* message, uint8_t qos, uint8_t retain);
+
+void mqtt_subscribe(const char* topic, uint8_t qos);
+
+void mqtt_publish(const char* topic, const uint8_t* data, const uint16_t len, uint8_t qos, uint8_t retain);
+
+void mqtt_connected_callback(void *response);
+
+void mqtt_disconnnected_callback(void *response);
+
+void mqtt_published_callback(void *response);
+
+void mqtt_data_callback(void *response);
 
 # endif /* _ESP8266__H */
