@@ -26,56 +26,63 @@ uint8_t protoBuf[128];
 uart_buffer_t rxBuffer;
 uint16_t crc;
 bool syncing = false;
+bool wifiConnected = false;
 
 /**************************************
  * Private functions
  */
 
 
-void Slip_Init(){
+esp8266_status_t esp8266_Slip_Init(){
 	proto.buf = protoBuf;
 	proto.bufSize = sizeof(protoBuf);
 	proto.dataLen = 0;
 	proto.isEsc = 0;
+	return ESP8266_INFO_OK;
 }
-void Slip_Write_Byte(uint8_t data){
+
+void esp8266_Write_Slip_Byte(uint8_t data){
 	switch(data){
 		case SLIP_END:
-		Safe_Send(SLIP_ESC);
-		Safe_Send(SLIP_ESC_END);
+		esp8266_Raw_Send(SLIP_ESC);
+		esp8266_Raw_Send(SLIP_ESC_END);
 		break;
 		case SLIP_ESC:
-		Safe_Send(SLIP_ESC);
-		Safe_Send(SLIP_ESC_ESC);
+		esp8266_Raw_Send(SLIP_ESC);
+		esp8266_Raw_Send(SLIP_ESC_ESC);
 		break;
 		default:
-		Safe_Send(data);
+		esp8266_Raw_Send(data);
 	}
 }
 
-void Slip_Write(void *data, uint16_t len){
+void esp8266_Write_Slip(void *data, uint16_t len){
 	uint8_t *d = (uint8_t*)data;
 	while(len--){
-		Slip_Write_Byte(*d++);
+		esp8266_Write_Slip_Byte(*d++);
 	}
 }
 
-void USART_Buffer_Init(uint16_t capacity){
+esp8266_status_t USART_Buffer_Init(uint16_t capacity){
 	rxBuffer.capacity = capacity;
 	rxBuffer.count = 0;
 	rxBuffer.buf = (uint8_t*)malloc(capacity * 8);
 	rxBuffer.head = rxBuffer.buf;
 	rxBuffer.tail = rxBuffer.buf;
 	rxBuffer.bufEnd = rxBuffer.buf + capacity * sizeof(uint8_t);
+
+	return ESP8266_INFO_OK;
 }
 
-void USART_Buffer_Free(){
+esp8266_status_t USART_Buffer_Free(){
 	free(rxBuffer.buf);
 	rxBuffer.capacity = 0;
 	rxBuffer.count = 0;
 	rxBuffer.head = NULL;
 	rxBuffer.tail = NULL;
 	rxBuffer.bufEnd = NULL;
+
+	return ESP8266_INFO_OK;
 }
 
 uint16_t USART_Buffer_Available(){
@@ -101,7 +108,7 @@ void USART_Buffer_Push(uint8_t data){
 	rxBuffer.count++;
 }
 
-uint8_t USART_Buffer_Pop8(void){
+uint8_t USART_Buffer_Pop(void){
 	if(rxBuffer.count == 0){
 		//Buffer is empty
 		return -1;
@@ -115,30 +122,6 @@ uint8_t USART_Buffer_Pop8(void){
 	return item;
 }
 
-uint16_t USART_Buffer_Pop16(void){
-	if(rxBuffer.count == 0){
-		//Buffer is empty
-		return -1;
-	}
-	uint16_t item = (uint16_t)*(rxBuffer.tail);
-	rxBuffer.tail++;
-	if(rxBuffer.tail == rxBuffer.bufEnd){
-		rxBuffer.tail = rxBuffer.buf;
-	}
-	rxBuffer.count = rxBuffer.count - 1;
-	if(rxBuffer.count == 0){
-		//Buffer only had one byte
-		return item;
-	} else {
-		item |= (*(rxBuffer.tail) << 8);
-		rxBuffer.tail++;
-		if(rxBuffer.tail == rxBuffer.bufEnd){
-			rxBuffer.tail = rxBuffer.buf;
-		}
-		rxBuffer.count--;
-		return item;
-	}
-}
 
 void USART1_IRQHandler(void) {
     if(USART_GetITStatus(USART1, USART_IT_RXNE)){
@@ -165,7 +148,7 @@ uint16_t crc16Data(const unsigned char *data, uint16_t len, uint16_t acc)
   return acc;
 }
 
-slip_packet_t *protoCompletedCb(void){
+slip_packet_t *esp8266_protoCompletedCb(void){
     slip_packet_t *packet = (slip_packet_t*)proto.buf;
     uint16_t crc = crc16Data(proto.buf, proto.dataLen-2, 0);
 
@@ -178,11 +161,14 @@ slip_packet_t *protoCompletedCb(void){
             return packet;
         case CMD_RESP_CB:
             //Here is where they return a callback function
-			log_Log(ESP8266, ESP8266_ERR_UNKNOWN, "Callback needed\0");
+			if(packet->value == (uint32_t)&esp8266_WifiCb){
+				wifi_status_t wifi_status = esp8266_WifiCb(packet);
+				log_Log(WIFI, wifi_status);
+			}
             return NULL;
         case CMD_SYNC:
             //esp-link not in sync
-            Esp_ResetCb();
+            esp8266_ResetCb();
             return NULL;
         default:
             //command not implemented
@@ -191,14 +177,14 @@ slip_packet_t *protoCompletedCb(void){
     }
 }
 
-slip_packet_t *Slip_Process(){
+slip_packet_t *esp8266_Process(){
     uint16_t value;
     while(USART_Buffer_Available() > 0){
-        value = USART_Buffer_Pop8();
+        value = USART_Buffer_Pop();
         if(value == SLIP_ESC){
             proto.isEsc = 1;
         } else if (value == SLIP_END){
-            slip_packet_t *packet = proto.dataLen >= 8 ? protoCompletedCb() : 0;
+            slip_packet_t *packet = proto.dataLen >= 8 ? esp8266_protoCompletedCb() : 0;
             proto.dataLen = 0;
             proto.isEsc = 0;
             if(packet != NULL)return packet;
@@ -216,9 +202,10 @@ slip_packet_t *Slip_Process(){
     return NULL;
 }
 
-void Safe_Send(uint16_t data){
+esp8266_status_t esp8266_Raw_Send(uint16_t data){
 	while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
 	USART_SendData(USART1, data);
+	return ESP8266_INFO_OK;
 }
 
 
@@ -272,19 +259,19 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
     // Send data serially
     while (i < firstSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        Slip_Write_Byte(*(((uint8_t *)wifi_packet)+i));
+        esp8266_Write_Slip_Byte(*(((uint8_t *)wifi_packet)+i));
         i++;
     }
     i = 0;
     while (i < secondSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        Slip_Write_Byte(*(wifi_packet->wifi_packet_msg+i));
+        esp8266_Write_Slip_Byte(*(wifi_packet->wifi_packet_msg+i));
         i++;
     }
     i = firstSize + sizeof(wifi_packet->wifi_packet_msg);
     while (i < thirdSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
-        Slip_Write_Byte(*(((uint8_t *)wifi_packet)+i));
+        esp8266_Write_Slip_Byte(*(((uint8_t *)wifi_packet)+i));
         i++;
     }
     i = 0;
@@ -294,7 +281,7 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
         if (i % 100 == 0) {
             for (uint32_t j = 0; j < 1000; j++) {}
         }
-        Slip_Write_Byte( *(wifi_packet->wifi_packet_data+i));
+        esp8266_Write_Slip_Byte( *(wifi_packet->wifi_packet_data+i));
         i++;
     }
     #endif
@@ -398,30 +385,32 @@ esp8266_status_t esp8266_Init() {
 	USART_Buffer_Init(1000);
 
 	//Setup SLIP
-	Slip_Init();
+	esp8266_Slip_Init();
 
 	//Sync with esp-link
-	bool esp_status = Esp_Sync();
+	esp8266_Sync();
+
+	uint32_t ntptime = esp8266_GetTime();
 
     #endif
 
 	return ESP8266_INFO_OK;
 }
 
-bool Esp_Sync(){
+bool esp8266_Sync(){
 	if(!syncing){
-		Safe_Send(SLIP_END);
+		esp8266_Raw_Send(SLIP_END);
 
 		//Sync request
-		Slip_Request(CMD_SYNC, (uint32_t)&Esp_WifiCb, 0);
-		Slip_Write((uint8_t*)&crc, 2);
-		Safe_Send(SLIP_END);
+		esp8266_Request(CMD_SYNC, (uint32_t)&esp8266_WifiCb, 0);
+		esp8266_Write_Slip((uint8_t*)&crc, 2);
+		esp8266_Raw_Send(SLIP_END);
 
 		syncing = true;
 
 		slip_packet_t *packet;
-		while((packet = Slip_Wait_Return()) != NULL){
-			if(packet->value == (uint32_t)&Esp_WifiCb){
+		while((packet = esp8266_Wait_Return()) != NULL){
+			if(packet->value == (uint32_t)&esp8266_WifiCb){
 				syncing = false;
 				return true;
 			}
@@ -432,47 +421,75 @@ bool Esp_Sync(){
 	return false;
 }
 
-void Slip_Request(uint16_t cmd, uint32_t value, uint16_t argc){
+esp8266_status_t esp8266_Request(uint16_t cmd, uint32_t value, uint16_t argc){
 	crc = 0;
-	Safe_Send(SLIP_END);
-	Slip_Write(&cmd, 2);
+	esp8266_Raw_Send(SLIP_END);
+	esp8266_Write_Slip(&cmd, 2);
 	crc = crc16Data((unsigned const char*)&cmd, 2, crc);
 
-	Slip_Write(&argc, 2);
+	esp8266_Write_Slip(&argc, 2);
 	crc = crc16Data((unsigned const char*)&argc, 2, crc);
 
-	Slip_Write(&value, 4);
+	esp8266_Write_Slip(&value, 4);
 	crc = crc16Data((unsigned const char*)&value, 4, crc);
+	return ESP8266_INFO_OK;
 }
 
-slip_packet_t *Slip_Wait_Return(void){
+slip_packet_t *esp8266_Wait_Return(void){
 	uint32_t count = 0;
 	while(count < ESP_TIMEOUT){
-		slip_packet_t *packet = Slip_Process();
+		slip_packet_t *packet = esp8266_Process();
 		if(packet != NULL) return packet;
 		count++;
 	}
 	return NULL;
 }
 
-void Esp_WifiCb(void *response){
+wifi_status_t esp8266_WifiCb(slip_packet_t *response){
 	//Function that will be called when the wifi changes state
+	if(response->argc == 1){
+		uint8_t status = response->args[0];
+		switch (status) {
+			case STATION_IDLE:
+				wifiConnected = false;
+				return WIFI_INFO_IDLE;
+			case STATION_CONNECTING:
+				wifiConnected = false;
+				return WIFI_INFO_CONNECTING;
+			case STATION_WRONG_PASSWORD:
+				wifiConnected = false;
+				return WIFI_WARN_WRONG_PASSWORD;
+			case STATION_NO_AP_FOUND:
+				wifiConnected = false;
+				return WIFI_WARN_NO_AP_FOUND;
+			case STATION_CONNECT_FAIL:
+				wifiConnected = false;
+				return WIFI_ERR_CONNECT_FAIL;
+			case STATION_GOT_IP:
+				wifiConnected = true;
+				return WIFI_INFO_GOT_IP;
+			default:
+				wifiConnected = false;
+				return WIFI_INFO_UNKNOWN;
+		}
+	}
+	return WIFI_INFO_UNKNOWN;
 }
 
-void Esp_ResetCb(void){
+void esp8266_ResetCb(void){
 	//Callback that gets called when the esp gets reset and we need to sync
 	bool ok = false;
 	do {
-		ok = Esp_Sync();
+		ok = esp8266_Sync();
 	} while(!ok);
 }
 
-uint32_t GetTime(){
-	Slip_Request(CMD_GET_TIME, 0, 0);
-	Slip_Write((uint8_t*)&crc, 2);
-	Safe_Send(SLIP_END);
+uint32_t esp8266_GetTime(){
+	esp8266_Request(CMD_GET_TIME, 0, 0);
+	esp8266_Write_Slip((uint8_t*)&crc, 2);
+	esp8266_Raw_Send(SLIP_END);
 
 
-	slip_packet_t *pkt = Slip_Wait_Return();
+	slip_packet_t *pkt = esp8266_Wait_Return();
 	return pkt ? pkt->value : 0;
 }

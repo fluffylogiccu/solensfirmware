@@ -20,7 +20,7 @@ import sys
 
 # Module definitions
 # KEEP IN SYNC WITH C CODE
-log_modules = { 
+log_modules = {
     0:  'LOG',
     1:  'CMD',
     2:  'STDLIB',
@@ -66,13 +66,13 @@ log_status = {
         ERR:    'LOG_ERR_DATASIZE',
         ERR+1:  'LOG_ERR_MSGSIZE',
         ERR+2:  'LOG_ERR_LOGOFF',
-        END-1:  'LOG_ERR_UNKNOWN' 
+        END-1:  'LOG_ERR_UNKNOWN'
     },
     'CMD': {
         INFO:   'CMD_INFO_OK',
         INFO+1: 'CMD_INFO_INTERRUPT',
         WARN-1: 'CMD_INFO_UNKNOWN',
-        WARN:   'CMD_WARN_FREE', 
+        WARN:   'CMD_WARN_FREE',
         WARN+1: 'CMD_WARN_ALINIT',
         ERR-1:  'CMD_WARN_UNKNOWN',
         ERR:    'CMD_ERR_QUEUEEMPTY',
@@ -94,7 +94,7 @@ log_status = {
     'SDRAM': {
         INFO:   'SDRAM_INFO_OK',
         WARN-1: 'SDRAM_INFO_UNKNOWN',
-        WARN:   'SDRAM_WARN_ALINIT', 
+        WARN:   'SDRAM_WARN_ALINIT',
         ERR-1:  'SDRAM_WARN_UNKNOWN',
         END-1:  'SDRAM_ERR_UNKNOWN'
     },
@@ -102,7 +102,7 @@ log_status = {
         INFO:   'OV5642_INFO_OK',
         INFO+1: 'OV5642_INFO_IMAGE',
         WARN-1: 'OV5642_INFO_UNKNOWN',
-        WARN:   'OV5642_WARN_ALINIT', 
+        WARN:   'OV5642_WARN_ALINIT',
         ERR-1:  'OV5642_WARN_UNKNOWN',
         ERR:    'OV5642_ERR_I2CSTART',
         ERR+1:  'OV5642_ERR_I2CREAD',
@@ -114,7 +114,7 @@ log_status = {
         INFO:   'OV7670_INFO_OK',
         INFO+1: 'OV7670_INFO_IMAGE',
         WARN-1: 'OV7670_INFO_UNKNOWN',
-        WARN:   'OV7670_WARN_ALINIT', 
+        WARN:   'OV7670_WARN_ALINIT',
         ERR-1:  'OV7670_WARN_UNKNOWN',
         ERR:    'OV7670_ERR_I2CSTART',
         ERR+1:  'OV7670_ERR_I2CREAD',
@@ -129,7 +129,7 @@ log_status = {
         WARN:   'PROF_WARN_ALINIT',
         ERR-1:  'PROF_WARN_UNKNOWN',
         END-1:  'PROF_ERR_UNKNOWN'
-        
+
     },
     'TEST': {
         INFO:   'TEST_INFO_OK',
@@ -161,13 +161,19 @@ log_status = {
     },
     'WIFI': {
         INFO:   'WIFI_INFO_OK',
+        INFO+1: 'WIFI_INFO_IDLE',
+        INFO+2: 'WIFI_INFO_CONNECTING',
+        INFO+3: 'WIFI_INFO_GOT_IP',
         WARN-1: 'WIFI_INFO_UNKNOWN',
         WARN:   'WIFI_WARN_ALINIT',
+        WARN+1: 'WIFI_WARN_WRONG_PASSWORD',
+        WARN+2: 'WIFI_WARN_NO_AP_FOUND',
         ERR-1:  'WIFI_WARN_UNKNOWN',
         ERR:    'WIFI_ERR_DATASIZE',
         ERR+1:  'WIFI_ERR_MSGSIZE',
         ERR+2:  'WIFI_ERR_SEND',
         ERR+3:  'WIFI_ERR_INIT',
+        ERR+4:  'WIFI_ERR_CONNECT_FAIL',
         END-1:  'ESP8266_ERR_UNKNOWN'
     },
 
@@ -175,7 +181,7 @@ log_status = {
 
 cmd_functions = {
     'LOG': {
-        'LOG_FUNC_INIT': 0, 
+        'LOG_FUNC_INIT': 0,
     },
     'CMD': {
         'CMD_FUNC_INIT': 0,
@@ -240,7 +246,7 @@ serial_rx = True
 q_input = queue.Queue()
 
 # st-util process
-p = None 
+p = None
 
 # gdb process
 d = None
@@ -382,7 +388,7 @@ def open_socket():
 def proc_stlink():
     global p
     p = subprocess.Popen(['st-util'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    print_info("Starting st-util process with pid " + str(p.pid) + ".") 
+    print_info("Starting st-util process with pid " + str(p.pid) + ".")
     atexit.register(lambda: [p.kill(), p.wait()])
 
     while True:
@@ -506,9 +512,9 @@ def cmd_parse_input(cmd):
         print_warning("Invalid command. Type 'help' to view a list of commands")
 
 def cmd_help():
-    print_info("The following commands are available:\n" + 
-          "\thelp:\t\t\tdisplay the help text\n" + 
-          "\tstlink\trestart:\trestart the STLINK connection\n" + 
+    print_info("The following commands are available:\n" +
+          "\thelp:\t\t\tdisplay the help text\n" +
+          "\tstlink\trestart:\trestart the STLINK connection\n" +
           "\tdebug\tstart:\t\tstart a debug session\n" +
           "\t\tstop:\t\tstop a debug session\n" +
           "\t\trestart:\trestart a debug session\n" +
@@ -541,7 +547,7 @@ def cmd_debug_start():
             d = subprocess.Popen(['gnome-terminal', '-x', 'arm-none-eabi-gdb', "bin/" + f, "-x", "config/.gdbinit"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             print_info("Starting arm-none-eabi-gdb process using " + f + " file.")
             break
-    
+
     if found_file == False:
         print_error("Could not find a valid .elf file. Try rebuilding.")
         print_warning("Cancelling debug request.")
@@ -600,7 +606,7 @@ def serial_handle_image(l):
         string += substring
 
     data_size = (l[l[2]+3]) + (l[l[2]+4] << 8) + (l[l[2]+5] << 16) + (l[l[2]+6] << 24)
-    
+
     print_info(string)
 
     if data_size != 0:
@@ -622,7 +628,7 @@ def serial_handle_image(l):
         if len(g) != 320*240:
             g += bytes(320*240-len(g))
         print("g is " + str(len(g)) + "bytes")
-        
+
         im = Image.frombytes("L", (320,240), g)
         im.show()
 
@@ -668,7 +674,7 @@ def serial_print_log(l):
                 if i % 8 == 0:
                     substring += "\n\t\t"
             string += substring
-        
+
         if l[1] >= INFO and l[1] < WARN:
             print_info(string)
         elif l[1] >= WARN and l[1] < ERR:
@@ -683,7 +689,7 @@ def serial_print_log(l):
 def serial_parse_log(d):
 
     global serial_rx
-    
+
     global serial_count
     global serial_msg_size
     global serial_total
@@ -706,7 +712,7 @@ def serial_parse_log(d):
             if (d[serial_total - serial_count:] != ''):
                 serial_parse_log(d[serial_total - serial_count:])
         else:
-            serial_count += len(d)            
+            serial_count += len(d)
             serial_list += d
     else:
 
@@ -714,7 +720,7 @@ def serial_parse_log(d):
             serial_count += 1
 
             serial_start_time = time.time()
-        
+
             serial_list += bytes([data])
 
             if serial_count == serial_header_size:
@@ -731,7 +737,7 @@ def serial_parse_log(d):
                 serial_data_size += (data << 24)
                 serial_total += serial_data_size
                 serial_data_flag = 1
-    
+
             if serial_count == serial_total:
                 serial_print_log(serial_list)
 
@@ -752,7 +758,7 @@ def main():
         return
     init()
     serial_reset()
-    
+
     global serial_written
     global serial_fifo
 

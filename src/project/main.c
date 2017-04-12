@@ -114,9 +114,6 @@ int main() {
     wifi_status_t w_st = wifi_Init();
     if (w_st == WIFI_INFO_OK) {
         log_Log(WIFI, WIFI_INFO_OK, "Initialized wifi module.\0");
-        log_Log(WIFI, WIFI_INFO_OK, "Getting time from esp.\0");
-        uint32_t ntptime = GetTime();
-        log_Log(WIFI, WIFI_INFO_OK, "Returned from GetTime.\0");
     } else if (w_st == WIFI_WARN_ALINIT) {
         log_Log(WIFI, WIFI_WARN_ALINIT, "Wifi module already initialized.\0");
     } else {

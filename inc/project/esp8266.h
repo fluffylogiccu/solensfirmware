@@ -102,7 +102,7 @@ typedef struct __attribute__ ((packed)) wifi_queue_s {
   *
   *  @return nothing
   */
-void Slip_Init(void);
+esp8266_status_t esp8266_Slip_Init(void);
 
 /** @brief Initialize USART1 Rx Buffer
  *
@@ -111,14 +111,14 @@ void Slip_Init(void);
  *
  *  @return nothing
  */
-void USART_Buffer_Init(uint16_t capacity);
+esp8266_status_t USART_Buffer_Init(uint16_t capacity);
 
 /** @brief Destroy the USART1 circular Rx buffer
  *
  *
  *  @return nothing
  */
-void USART_Buffer_Free(void);
+esp8266_status_t USART_Buffer_Free(void);
 
 /** @brief Get the number of bytes sitting in
  *  the circular buffer
@@ -140,19 +140,8 @@ void USART_Buffer_Push(uint8_t data);
  *
  *  @return first byte that was pushed on the buffer
  */
-uint8_t USART_Buffer_Pop8(void);
+uint8_t USART_Buffer_Pop(void);
 
-/** @brief Pop two bytes off the buffer
- *
- *  Returns null if buffer is empty
- *  This function was implemented to deal with
- *  the retrofitted el-client functions that deal with
- *  Arduino ints (16 bits) but the buffer accepts a byte
- *  at a time form the UART Rx line
- *
- *  @return first byte that was pushed on the buffer
- */
-uint16_t USART_Buffer_Pop16(void);
 
 /** @brief Interrupt handler for USART1 Rx
  *
@@ -193,11 +182,11 @@ uint16_t crc16Add(unsigned char b, uint16_t acc);
 */
 uint16_t crc16Data(const unsigned char *data, uint16_t len, uint16_t acc);
 
-slip_packet_t *protoCompletedCb(void);
+slip_packet_t *esp8266_protoCompletedCb(void);
 
-slip_packet_t *Slip_Process(void);
+slip_packet_t *esp8266_Process(void);
 
-void Safe_Send(uint16_t data);
+
 
 
 /**************************************
@@ -227,7 +216,7 @@ esp8266_status_t esp8266_Init();
 /** @brief Handshake with the esp-link
  *
  */
- bool Esp_Sync();
+ bool esp8266_Sync();
 
 /** @brief Write byte data to UART1 using SLIP
  *
@@ -236,7 +225,7 @@ esp8266_status_t esp8266_Init();
  *  for the SLIP protocol
  *  @return none
  */
-void Slip_Write_Byte(uint8_t data);
+void esp8266_Write_Slip_Byte(uint8_t data);
 
 /** @brief Write data to UART1 using SLIP
  *
@@ -245,7 +234,13 @@ void Slip_Write_Byte(uint8_t data);
  *
  *  @return none
  */
-void Slip_Write(void *data, uint16_t len);
+void esp8266_Write_Slip(void *data, uint16_t len);
+
+/** @brief Write data to UART1 without encoding for SLIP
+ *
+ *  @return status
+ */
+esp8266_status_t esp8266_Raw_Send(uint16_t data);
 
 /** @brief Modified Request function from el-client
  *
@@ -254,7 +249,7 @@ void Slip_Write(void *data, uint16_t len);
  *
  *  @return none
  */
-void Slip_Request(uint16_t cmd, uint32_t value, uint16_t argc);
+esp8266_status_t esp8266_Request(uint16_t cmd, uint32_t value, uint16_t argc);
 
 /** @brief Modified WaitReturn function from el-client
  *
@@ -263,12 +258,12 @@ void Slip_Request(uint16_t cmd, uint32_t value, uint16_t argc);
  *
  *  @return none
  */
-slip_packet_t *Slip_Wait_Return(void);
+slip_packet_t *esp8266_Wait_Return(void);
 
 
-void Esp_WifiCb(void *response);
+wifi_status_t esp8266_WifiCb(slip_packet_t *response);
 
-void Esp_ResetCb(void);
+void esp8266_ResetCb(void);
 
 /** @brief Modified GetTime function from el-client
  *
@@ -278,6 +273,6 @@ void Esp_ResetCb(void);
  *
  *  @return none
  */
-uint32_t GetTime();
+uint32_t esp8266_GetTime();
 
 # endif /* _ESP8266__H */

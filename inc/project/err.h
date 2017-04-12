@@ -3,7 +3,7 @@
  *  warnings, and status.
  *
  *  This contains the definitions for errors, warnings, and
- *  status for every module. INFO enum values are reserved 
+ *  status for every module. INFO enum values are reserved
  *  as 0-19, WARN enum values are reserved as 20-39, and
  *  ERR enum values are reserved as 40-59.
  *
@@ -45,7 +45,7 @@ typedef enum log_status_e {
     LOG_WARN_ALINIT = WARN,
     LOG_WARN_IGNORED = WARN+1,
     LOG_WARN_UNKNOWN = ERR-1,
-    
+
     LOG_ERR_DATASIZE = ERR,
     LOG_ERR_MSGSIZE = ERR+1,
     LOG_ERR_LOGOFF = ERR+2,
@@ -195,15 +195,21 @@ typedef enum esp8266_status_e {
  */
 typedef enum wifi_status_e {
     WIFI_INFO_OK = INFO,
+    WIFI_INFO_IDLE = INFO+1,
+    WIFI_INFO_CONNECTING = INFO+2,
+    WIFI_INFO_GOT_IP = INFO+3,
     WIFI_INFO_UNKNOWN = WARN-1,
 
     WIFI_WARN_ALINIT = WARN,
+    WIFI_WARN_WRONG_PASSWORD = WARN+1,
+    WIFI_WARN_NO_AP_FOUND = WARN+2,
     WIFI_WARN_UNKNOWN = ERR-1,
 
     WIFI_ERR_DATASIZE = ERR,
     WIFI_ERR_MSGSIZE = ERR+1,
     WIFI_ERR_SEND = ERR+2,
     WIFI_ERR_INIT = ERR+3,
+    WIFI_ERR_CONNECT_FAIL = ERR+4,
     WIFI_ERR_UNKNOWN = END-1,
 } wifi_status_t;
 
@@ -213,7 +219,7 @@ typedef enum wifi_status_e {
 
 #ifdef  USE_FULL_ASSERT
 /**
- * @brief Reports the name of the source file and the 
+ * @brief Reports the name of the source file and the
  * source line number where the assert_param error has
  * occured. Used by the STM32f4xx standard peripheral
  * library to report issues.
@@ -222,7 +228,7 @@ typedef enum wifi_status_e {
  * @param  line: assert_param error line source number
  * @retval None
  */
-void assert_failed(uint8_t* file, uint32_t line) { 
+void assert_failed(uint8_t* file, uint32_t line) {
     log_Log(STDLIB, STDLIB_ERR_UNKNOWN, file, 4, &line);
 }
 #endif
