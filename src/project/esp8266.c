@@ -18,11 +18,12 @@
 #include "stm32f4xx_usart.h"
 #include "wifi.h"
 #include <stdint.h>
+#include "log.h"
 
 
-slip_protocol_t *proto;
+slip_protocol_t proto;
 uint8_t protoBuf[128];
-uart_buffer_t *rxBuffer;
+uart_buffer_t rxBuffer;
 uint16_t crc;
 bool syncing = false;
 
@@ -32,10 +33,10 @@ bool syncing = false;
 
 
 void Slip_Init(){
-	proto->buf = protoBuf;
-	proto->bufSize = sizeof(protoBuf);
-	proto->dataLen = 0;
-	proto->isEsc = 0;
+	proto.buf = protoBuf;
+	proto.bufSize = sizeof(protoBuf);
+	proto.dataLen = 0;
+	proto.isEsc = 0;
 }
 void Slip_Write_Byte(uint8_t data){
 	switch(data){
@@ -60,26 +61,26 @@ void Slip_Write(void *data, uint16_t len){
 }
 
 void USART_Buffer_Init(uint16_t capacity){
-	rxBuffer->capacity = capacity;
-	rxBuffer->count = 0;
-	rxBuffer->buf = (uint8_t*)malloc(capacity * 8);
-	rxBuffer->head = rxBuffer->buf;
-	rxBuffer->tail = rxBuffer->buf;
-	rxBuffer->bufEnd = rxBuffer->buf + capacity * 8;
+	rxBuffer.capacity = capacity;
+	rxBuffer.count = 0;
+	rxBuffer.buf = (uint8_t*)malloc(capacity * 8);
+	rxBuffer.head = rxBuffer.buf;
+	rxBuffer.tail = rxBuffer.buf;
+	rxBuffer.bufEnd = rxBuffer.buf + capacity * sizeof(uint8_t);
 }
 
 void USART_Buffer_Free(){
-	free(rxBuffer->buf);
-	rxBuffer->capacity = 0;
-	rxBuffer->count = 0;
-	rxBuffer->head = NULL;
-	rxBuffer->tail = NULL;
-	rxBuffer->bufEnd = NULL;
+	free(rxBuffer.buf);
+	rxBuffer.capacity = 0;
+	rxBuffer.count = 0;
+	rxBuffer.head = NULL;
+	rxBuffer.tail = NULL;
+	rxBuffer.bufEnd = NULL;
 }
 
 uint16_t USART_Buffer_Available(){
-	if(rxBuffer->buf != NULL){
-		return rxBuffer->count;
+	if(rxBuffer.buf != NULL){
+		return rxBuffer.count;
 	}
 	else{
 		//Buffer not initialized
@@ -88,53 +89,53 @@ uint16_t USART_Buffer_Available(){
 }
 
 void USART_Buffer_Push(uint8_t data){
-	if(rxBuffer->count == rxBuffer->capacity){
+	if(rxBuffer.count == rxBuffer.capacity){
 		//Buffer is full
 		return;
 	}
-	*(rxBuffer->head) = data;
-	rxBuffer->head++;
-	if(rxBuffer->head == rxBuffer->bufEnd){
-		rxBuffer->head = rxBuffer->buf;
+	*(rxBuffer.head) = data;
+	rxBuffer.head++;
+	if(rxBuffer.head == rxBuffer.bufEnd){
+		rxBuffer.head = rxBuffer.buf;
 	}
-	rxBuffer->count++;
+	rxBuffer.count++;
 }
 
 uint8_t USART_Buffer_Pop8(void){
-	if(rxBuffer->count == 0){
+	if(rxBuffer.count == 0){
 		//Buffer is empty
 		return -1;
 	}
-	uint8_t item = *(rxBuffer->tail);
-	rxBuffer->tail++;
-	if(rxBuffer->tail == rxBuffer->bufEnd){
-		rxBuffer->tail = rxBuffer->buf;
+	uint8_t item = *(rxBuffer.tail);
+	rxBuffer.tail++;
+	if(rxBuffer.tail == rxBuffer.bufEnd){
+		rxBuffer.tail = rxBuffer.buf;
 	}
-	rxBuffer->count--;
+	rxBuffer.count--;
 	return item;
 }
 
 uint16_t USART_Buffer_Pop16(void){
-	if(rxBuffer->count == 0){
+	if(rxBuffer.count == 0){
 		//Buffer is empty
 		return -1;
 	}
-	uint16_t item = (uint16_t)*(rxBuffer->tail);
-	rxBuffer->tail++;
-	if(rxBuffer->tail == rxBuffer->bufEnd){
-		rxBuffer->tail = rxBuffer->buf;
+	uint16_t item = (uint16_t)*(rxBuffer.tail);
+	rxBuffer.tail++;
+	if(rxBuffer.tail == rxBuffer.bufEnd){
+		rxBuffer.tail = rxBuffer.buf;
 	}
-	rxBuffer->count = rxBuffer->count - 1;
-	if(rxBuffer->count == 0){
+	rxBuffer.count = rxBuffer.count - 1;
+	if(rxBuffer.count == 0){
 		//Buffer only had one byte
 		return item;
 	} else {
-		item |= (*(rxBuffer->tail) << 8);
-		rxBuffer->tail++;
-		if(rxBuffer->tail == rxBuffer->bufEnd){
-			rxBuffer->tail = rxBuffer->buf;
+		item |= (*(rxBuffer.tail) << 8);
+		rxBuffer.tail++;
+		if(rxBuffer.tail == rxBuffer.bufEnd){
+			rxBuffer.tail = rxBuffer.buf;
 		}
-		rxBuffer->count--;
+		rxBuffer.count--;
 		return item;
 	}
 }
@@ -165,10 +166,10 @@ uint16_t crc16Data(const unsigned char *data, uint16_t len, uint16_t acc)
 }
 
 slip_packet_t *protoCompletedCb(void){
-    slip_packet_t *packet = (slip_packet_t*)proto->buf;
-    uint16_t crc = crc16Data(proto->buf, proto->dataLen-2, 0);
+    slip_packet_t *packet = (slip_packet_t*)proto.buf;
+    uint16_t crc = crc16Data(proto.buf, proto.dataLen-2, 0);
 
-    uint16_t resp_crc = *(uint16_t*)(proto->buf+proto->dataLen-2);
+    uint16_t resp_crc = *(uint16_t*)(proto.buf+proto.dataLen-2);
     if(crc != resp_crc){
         return NULL;
     }
@@ -177,6 +178,7 @@ slip_packet_t *protoCompletedCb(void){
             return packet;
         case CMD_RESP_CB:
             //Here is where they return a callback function
+			log_Log(ESP8266, ESP8266_ERR_UNKNOWN, "Callback needed\0");
             return NULL;
         case CMD_SYNC:
             //esp-link not in sync
@@ -184,6 +186,7 @@ slip_packet_t *protoCompletedCb(void){
             return NULL;
         default:
             //command not implemented
+			log_Log(ESP8266, ESP8266_ERR_UNKNOWN, "Unknown Command\0");
             return NULL;
     }
 }
@@ -191,22 +194,22 @@ slip_packet_t *protoCompletedCb(void){
 slip_packet_t *Slip_Process(){
     uint16_t value;
     while(USART_Buffer_Available() > 0){
-        value = USART_Buffer_Pop16();
+        value = USART_Buffer_Pop8();
         if(value == SLIP_ESC){
-            proto->isEsc = 1;
+            proto.isEsc = 1;
         } else if (value == SLIP_END){
-            slip_packet_t *packet = proto->dataLen >= 8 ? protoCompletedCb() : 0;
-            proto->dataLen = 0;
-            proto->isEsc = 0;
+            slip_packet_t *packet = proto.dataLen >= 8 ? protoCompletedCb() : 0;
+            proto.dataLen = 0;
+            proto.isEsc = 0;
             if(packet != NULL)return packet;
         } else {
-            if(proto->isEsc){
+            if(proto.isEsc){
                 if(value == SLIP_ESC_END) value = SLIP_END;
                 if(value == SLIP_ESC_ESC) value = SLIP_ESC;
-                proto->isEsc = 0;
+                proto.isEsc = 0;
             }
-            if(proto->dataLen < proto->bufSize){
-                proto->buf[proto->dataLen++] = value;
+            if(proto.dataLen < proto.bufSize){
+                proto.buf[proto.dataLen++] = value;
             }
         }
     }
@@ -392,7 +395,7 @@ esp8266_status_t esp8266_Init() {
     USART_Cmd(USART1, ENABLE);
 
 	//Init WiFi Rx circular buffer
-	USART_Buffer_Init(100);
+	USART_Buffer_Init(1000);
 
 	//Setup SLIP
 	Slip_Init();

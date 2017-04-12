@@ -27,7 +27,7 @@
 #define SLIP_ESC      0333    /**< Indicates byte stuffing */
 #define SLIP_ESC_END  0334    /**< ESC ESC_END means END data byte */
 #define SLIP_ESC_ESC  0335    /**< ESC ESC_ESC means ESC data byte */
-#define ESP_TIMEOUT 2000 /**< Default timeout for TCP requests when waiting for a response */
+#define ESP_TIMEOUT 200000 /**< Default timeout for TCP requests when waiting for a response */
 
 // Enumeration of commands supported by esp-link, this needs to match the definition in
 // esp-link!
@@ -82,7 +82,7 @@ typedef struct PACKED {
 } slip_packet_t; /**< Packet structure  */
 
 //Circular buffer
-typedef struct wifi_queue_s {
+typedef struct __attribute__ ((packed)) wifi_queue_s {
     uint8_t *buf;
     uint8_t *head;
     uint8_t *tail;

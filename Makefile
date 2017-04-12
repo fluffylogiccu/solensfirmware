@@ -141,6 +141,7 @@ CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16 -specs=nosys.specs
 CFLAGS += $(addprefix -I, $(INC_DIR))
 CFLAGS += $(addprefix -D, $(COMP_FLAGS))
+CFLAGS += -fvar-tracking
 
 RM_F = rm -f
 MKDIR_P = mkdir -p
