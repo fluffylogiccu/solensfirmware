@@ -29,6 +29,7 @@ typedef enum mod_e {
     CAM,
     ESP8266,
     WIFI,
+    SLEEP,
 } mod_t;
 
 # endif /* __MOD_H */

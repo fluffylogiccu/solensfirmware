@@ -213,6 +213,17 @@ typedef enum wifi_status_e {
     WIFI_ERR_UNKNOWN = END-1,
 } wifi_status_t;
 
+/* @brief sleep status
+ */
+typedef enum sleep_status_e {
+    SLEEP_INFO_OK = INFO,
+    SLEEP_INFO_UNKNOWN = WARN-1,
+
+    SLEEP_WARN_UNKNOWN = ERR-1,
+
+    SLEEP_ERR_UNKNOWN = END-1,
+} sleep_status_t;
+
 /**************************************
  * @name Public functions
  */
