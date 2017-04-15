@@ -28,6 +28,7 @@
 #define SLIP_ESC_END  0334    /**< ESC ESC_END means END data byte */
 #define SLIP_ESC_ESC  0335    /**< ESC ESC_ESC means ESC data byte */
 #define ESP_TIMEOUT 200000 /**< Default timeout for TCP requests when waiting for a response */
+#define MAX_PACKET_SIZE 800
 
 // Enumeration of commands supported by esp-link, this needs to match the definition in
 // esp-link!

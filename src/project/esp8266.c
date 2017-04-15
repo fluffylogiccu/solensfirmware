@@ -28,6 +28,7 @@ uart_buffer_t rxBuffer;
 uint16_t crc;
 bool syncing = false;
 bool wifiConnected = false;
+bool publishing = false;
 
 /**************************************
  * Private functions
@@ -226,6 +227,7 @@ esp8266_status_t esp8266_Raw_Send(uint16_t data){
  */
 
 esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
+	#ifdef __STM32F429I_DISCOVERY
 	uint32_t i = 0;
     uint8_t firstSize = sizeof(wifi_packet->wifi_packet_mod) +
                         sizeof(wifi_packet->wifi_packet_status) +
@@ -236,7 +238,7 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
                          firstSize;
     uint32_t fourthSize = wifi_packet->wifi_packet_dataLen;;
 
-    #ifdef __STM32F429I_DISCOVERY
+
     // Send data serially
     while (i < firstSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
@@ -269,6 +271,7 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 
     #ifdef __S0LENS_A
     // Send data serially
+	/*
     while (i < firstSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
         esp8266_Write_Slip_Byte(*(((uint8_t *)wifi_packet)+i));
@@ -296,6 +299,25 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
         esp8266_Write_Slip_Byte( *(wifi_packet->wifi_packet_data+i));
         i++;
     }
+	*/
+	publishing = true;
+	uint32_t count = 0;
+	uint8_t *dataPointer = wifi_packet->wifi_packet_data;
+	uint32_t dataLen = 0;
+	uint8_t len_array[4] = {wifi_packet->wifi_packet_dataLen & 0xff, \
+							wifi_packet->wifi_packet_dataLen & 0xff00, \
+							wifi_packet->wifi_packet_dataLen & 0xff0000, \
+							wifi_packet->wifi_packet_dataLen & 0xff000000};
+	mqtt_publish("imgstart", len_array, 4, 0, 0);
+	while(count < wifi_packet->wifi_packet_dataLen){
+		dataLen = (wifi_packet->wifi_packet_dataLen - count ) > MAX_PACKET_SIZE ? MAX_PACKET_SIZE : (wifi_packet->wifi_packet_dataLen - count);
+		mqtt_publish("img", dataPointer, dataLen, 0, 0);
+		dataPointer += dataLen;
+		count += dataLen;
+		esp8266_Process();
+	}
+	mqtt_publish("imgend", len_array, 4, 0, 0);
+
     #endif
 
     return WIFI_INFO_OK;
@@ -400,15 +422,21 @@ esp8266_status_t esp8266_Init() {
 	esp8266_Slip_Init();
 
 	//Sync with esp-link
-	esp8266_Sync();
+	bool ok;
+	do{
+		ok = esp8266_Sync();
+		if(!ok) log_Log(WIFI, WIFI_ERR_UNKNOWN, "Unable to sync.\0");
+	} while(!ok);
 
 	uint32_t ntptime = esp8266_GetTime();
 
 
 	mqtt_setup();
+	esp8266_Wait_Return();
 
 	uint8_t buf[12] = "Testmessage\0";
-	mqtt_publish("test topic", buf, 12, 1, 1);
+	mqtt_publish("test topic", buf, 12, 0, 0);
+	esp8266_Wait_Return();
 
     #endif
 
@@ -593,6 +621,7 @@ void mqtt_disconnnected_callback(void *response){
 }
 
 void mqtt_published_callback(void *response){
+	publishing = false;
 	log_Log(WIFI, WIFI_INFO_OK, "MQTT published.\0");
 }
 

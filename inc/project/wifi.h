@@ -26,10 +26,7 @@
 /* @brief Type for wifi packets
  */
 typedef struct __attribute__ ((packed)) wifi_packet_s {
-	uint8_t wifi_packet_mod;
-	uint8_t wifi_packet_status;
-    uint8_t wifi_packet_msgLen;
-    uint8_t *wifi_packet_msg;
+    char* wifi_packet_topic;
     uint32_t wifi_packet_dataLen;
     uint8_t *wifi_packet_data;
 } wifi_packet_t;
@@ -61,6 +58,6 @@ wifi_status_t wifi_Send(mod_t mod, gen_status_t status, char *msg, uint32_t len,
  *
  *  @return a status code of type wifi_status_t
  */
-wifi_status_t wifi_Init(); 
+wifi_status_t wifi_Init();
 
 # endif /* __WIFI_H */
