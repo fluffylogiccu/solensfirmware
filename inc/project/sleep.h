@@ -2,7 +2,7 @@
  *  @brief Function prototypes for the sleep system.
  *
  *  This contains the prototypes, macros, constants,
- *  and global variables for the sleep file. 
+ *  and global variables for the sleep file.
  *
  *  @author Ben Heberlein
  *  @bug No known bugs.
@@ -16,6 +16,9 @@
  */
 
 #include "err.h"
+#include "esp8266.h"
+#include "stm32f4xx_rtc.h"
+#include "stm32f4xx_pwr.h"
 #include <stdint.h>
 
 /**************************************
@@ -31,7 +34,7 @@
  *  This function initializes the sleep module. It
  *  Initializes the RTC clock and gets the time from
  *  the NTP server. The wifi should be configured before
- *  calling this function.      
+ *  calling this function.
  *
  *  @return a status code of type sleep_status_t
  */

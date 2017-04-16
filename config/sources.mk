@@ -5,12 +5,14 @@ SRCS := main.c \
 		sdram.c \
 		prof.c \
 		cam.c \
-		\
+		sleep.c \
         system_stm32f4xx.c \
         startup_stm32f429_439xx.s \
         stm32f4xx_it.c \
 		\
 		misc.c \
+		stm32f4xx_rtc.c \
+		stm32f4xx_pwr.c \
 		stm32f4xx_rcc.c \
 		stm32f4xx_gpio.c \
 		stm32f4xx_exti.c
@@ -21,7 +23,7 @@ ifeq ($(DEBUG),TRUE)
   else
     ifeq ($(CMD),TRUE)
       SRCS += stm32f4xx_usart.c
-    endif	
+    endif
   endif
 
   ifeq ($(PROF),TRUE)
@@ -29,7 +31,7 @@ ifeq ($(DEBUG),TRUE)
   endif
 
   ifeq ($(TEST),TRUE)
-    ifneq ($(LOG),NONE) 
+    ifneq ($(LOG),NONE)
       SRCS += test_log.c
     endif
 
@@ -43,7 +45,7 @@ endif
 ifeq ($(BOARD),STM32F429I_DISCOVERY)
   SRCS += stm32f429i_discovery_sdram.c \
 		  stm32f4xx_fmc.c
-else 
+else
   ifeq ($(BOARD),S0LENS_A)
     SRCS += solens_sdram.c \
 			stm32f4xx_fmc.c
@@ -61,7 +63,7 @@ else
 			stm32f4xx_dma.c \
             stm32f4xx_dcmi.c \
             stm32f4xx_i2c.c
-  endif 
+  endif
 endif
 
 ifneq ($(WIFI),NONE)
@@ -106,4 +108,3 @@ PROJ_NAME := firmware_poc
 
 # Linker file
 LINKER_FILE := $(CONF_DIR)/STM32F429ZI_FLASH.ld
-

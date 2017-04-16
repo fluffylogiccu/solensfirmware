@@ -428,8 +428,6 @@ esp8266_status_t esp8266_Init() {
 		if(!ok) log_Log(WIFI, WIFI_ERR_UNKNOWN, "Unable to sync.\0");
 	} while(!ok);
 
-	uint32_t ntptime = esp8266_GetTime();
-
 
 	mqtt_setup();
 	esp8266_Wait_Return();

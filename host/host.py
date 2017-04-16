@@ -741,7 +741,6 @@ def serial_parse_log(d):
             if serial_count == serial_total:
                 serial_print_log(serial_list)
 
-    print(serial_count)
     #PAY NO ATTENTION TO THE HACK BELOW THIS LINE
     if serial_count == 153472 or serial_count == 153510 or serial_count == 153548:
         serial_print_log(serial_list)

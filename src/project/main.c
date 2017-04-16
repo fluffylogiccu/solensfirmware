@@ -32,6 +32,7 @@
 #include "esp8266.h"
 #endif
 #include "cam.h"
+#include "sleep.h"
 
 #include <stdint.h>
 
@@ -120,6 +121,13 @@ int main() {
         log_Log(WIFI, w_st, "Could not initialize wifi module.\0");
     }
     #endif
+
+    sleep_status_t sl_st = sleep_Init();
+    if (sl_st == SLEEP_INFO_OK) {
+        log_Log(SLEEP, SLEEP_INFO_OK, "Initialized sleep module.\0");
+    } else {
+        log_Log(SLEEP, sl_st, "Could not initialize sleep module.\0");
+    }
 
     // Start main loop
     cmd_status_t cmd_st = cmd_Loop();
