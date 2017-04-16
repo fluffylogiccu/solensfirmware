@@ -25,12 +25,24 @@
 
 /* @brief Type for wifi packets
  */
+#ifdef __S0LENS_A
 typedef struct __attribute__ ((packed)) wifi_packet_s {
     char* wifi_packet_topic;
     uint32_t wifi_packet_dataLen;
     uint8_t *wifi_packet_data;
 } wifi_packet_t;
+#endif
 
+#ifdef __STM32F429I_DISCOVERY
+typedef struct __attribute__ ((packed)) wifi_packet_s {
+    uint8_t wifi_packet_mod;
+    uint8_t wifi_packet_status;
+    uint8_t wifi_packet_msgLen;
+    uint8_t *wifi_packet_msg;
+    uint32_t wifi_packet_dataLen;
+    uint8_t *wifi_packet_data;
+} wifi_packet_t;
+#endif
 /**************************************
  * @name Private functions
  */
