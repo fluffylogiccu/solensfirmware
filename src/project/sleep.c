@@ -14,8 +14,11 @@
 
 #include "err.h"
 #include "sleep.h"
+#include "log.h"
 #include <stdint.h>
 #include <time.h>
+
+static time_t sleep_alarmTime;
 
 /**************************************
  * Private functions
@@ -40,16 +43,16 @@ sleep_status_t sleep_rtcInit() {
     //RCC_BackupResetCmd(DISABLE);
 
     /* Enable the LSE OSC */
-    //RCC_LSEConfig(RCC_LSE_ON);
+    RCC_LSEConfig(RCC_LSE_ON);
 
     /* Wait till LSE is ready */
-    //while(RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET)
-    //{
-    //}
+    while(RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET)
+    {
+    }
 
     /* Select the RTC Clock Source */
-    //RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
-    RCC_RTCCLKConfig(RCC_RTCCLKSource_HSE_Div31);
+    RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
+    //RCC_RTCCLKConfig(RCC_RTCCLKSource_HSE_Div31);
 
     /* Enable the RTC Clock */
      RCC_RTCCLKCmd(ENABLE);
@@ -69,30 +72,6 @@ sleep_status_t sleep_rtcInit() {
     struct tm *info;
     info = localtime(&ntptime);
 
-    time_t ntptime_next = ntptime + 10;
-    struct tm *info_next;
-    info_next = localtime(&ntptime_next);
-
-    /* Set the alarm 05h:20min:30s */
-    RTC_AlarmStructure.RTC_AlarmTime.RTC_H12     = RTC_H12_AM;
-    RTC_AlarmStructure.RTC_AlarmTime.RTC_Hours   = 0;
-    RTC_AlarmStructure.RTC_AlarmTime.RTC_Minutes = 0;
-    RTC_AlarmStructure.RTC_AlarmTime.RTC_Seconds = 0x10;
-    RTC_AlarmStructure.RTC_AlarmDateWeekDay = 0x31;
-    RTC_AlarmStructure.RTC_AlarmDateWeekDaySel = RTC_AlarmDateWeekDaySel_Date;
-    RTC_AlarmStructure.RTC_AlarmMask = RTC_AlarmMask_DateWeekDay;
-
-    /* Configure the RTC Alarm A register */
-    RTC_SetAlarm(RTC_Format_BCD, RTC_Alarm_A, &RTC_AlarmStructure);
-
-    /* Enable RTC Alarm A Interrupt */
-    RTC_ITConfig(RTC_IT_ALRA, ENABLE);
-
-    /* Enable the alarm */
-    RTC_AlarmCmd(RTC_Alarm_A, ENABLE);
-
-    RTC_ClearFlag(RTC_FLAG_ALRAF);
-
     /* Set the time to 00h 00mn 00s AM */
     RTC_TimeStructure.RTC_H12     = RTC_H12_AM;
     RTC_TimeStructure.RTC_Hours   = info->tm_hour;
@@ -105,6 +84,38 @@ sleep_status_t sleep_rtcInit() {
     RTC_DateStructure.RTC_Date = info->tm_mday;
     RTC_DateStructure.RTC_WeekDay = info->tm_wday;
     RTC_SetDate(RTC_Format_BCD, &RTC_DateStructure);
+
+    sleep_alarmTime = ntptime + 30;
+    struct tm *info_next;
+    info_next = localtime(&sleep_alarmTime);
+
+    /* Disable the Alarm A */
+    RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
+
+    /* Set the alarm 05h:20min:30s */
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_H12     = RTC_H12_AM;
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_Hours   = info_next->tm_hour;
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_Minutes = info_next->tm_min;
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_Seconds = info_next->tm_sec;
+    RTC_AlarmStructure.RTC_AlarmDateWeekDay = info_next->tm_wday;
+    RTC_AlarmStructure.RTC_AlarmDateWeekDaySel = RTC_AlarmDateWeekDaySel_Date;
+    RTC_AlarmStructure.RTC_AlarmMask = RTC_AlarmMask_DateWeekDay | RTC_AlarmMask_Hours | RTC_AlarmMask_Minutes;
+
+    /* Configure the RTC Alarm A register */
+    RTC_SetAlarm(RTC_Format_BIN, RTC_Alarm_A, &RTC_AlarmStructure);
+
+    RTC_TimeTypeDef time_temp;
+    RTC_AlarmTypeDef alarm_temp;
+    RTC_GetTime(RTC_Format_BIN, &time_temp);
+    RTC_GetAlarm(RTC_Format_BIN, RTC_Alarm_A, &alarm_temp);
+
+    /* Enable RTC Alarm A Interrupt */
+    RTC_ITConfig(RTC_IT_ALRA, ENABLE);
+
+    /* Enable the alarm */
+    RTC_AlarmCmd(RTC_Alarm_A, ENABLE);
+
+    RTC_ClearFlag(RTC_FLAG_ALRAF);
 
     /* RTC Alarm A Interrupt Configuration */
     /* EXTI configuration *********************************************************/
@@ -131,6 +142,43 @@ void RTC_Alarm_IRQHandler(void)
   {
     RTC_ClearITPendingBit(RTC_IT_ALRA);
     EXTI_ClearITPendingBit(EXTI_Line17);
+
+    RTC_AlarmTypeDef RTC_AlarmStructure;
+
+    /* Disable the Alarm A */
+    RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
+
+    sleep_alarmTime = sleep_alarmTime + 30;
+    struct tm *info_next;
+    info_next = localtime(&sleep_alarmTime);
+
+    /* Disable the Alarm A */
+    RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
+
+    /* Set the alarm 05h:20min:30s */
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_H12     = RTC_H12_AM;
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_Hours   = info_next->tm_hour;
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_Minutes = info_next->tm_min;
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_Seconds = info_next->tm_sec;
+    RTC_AlarmStructure.RTC_AlarmDateWeekDay = info_next->tm_wday;
+    RTC_AlarmStructure.RTC_AlarmDateWeekDaySel = RTC_AlarmDateWeekDaySel_Date;
+    RTC_AlarmStructure.RTC_AlarmMask = RTC_AlarmMask_DateWeekDay | RTC_AlarmMask_Hours | RTC_AlarmMask_Minutes;
+
+    /* Configure the RTC Alarm A register */
+    RTC_SetAlarm(RTC_Format_BIN, RTC_Alarm_A, &RTC_AlarmStructure);
+
+    /* Enable RTC Alarm A Interrupt: this Interrupt will wake-up the system from
+       STANDBY mode (RTC Alarm IT not enabled in NVIC) */
+    RTC_ITConfig(RTC_IT_ALRA, ENABLE);
+
+    /* Enable the Alarm A */
+    RTC_AlarmCmd(RTC_Alarm_A, ENABLE);
+
+    /* Clear RTC Alarm Flag */
+    RTC_ClearFlag(RTC_FLAG_ALRAF);
+
+    log_Log(SLEEP, SLEEP_INFO_OK, "30 second interrupt\0");
+
   }
 }
 

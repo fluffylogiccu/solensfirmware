@@ -32,6 +32,7 @@ log_modules = {
     8:  'CAM',
     9:  'ESP8266',
     10: 'WIFI',
+    11: 'SLEEP'
 }
 
 # reversed for easier sending
@@ -47,6 +48,7 @@ cmd_modules = {
     'CAM':     8,
     'ESP8266': 9,
     'WIFI':    10,
+    'SLEEP':   11,
 }
 
 # Error definitions
@@ -175,6 +177,12 @@ log_status = {
         ERR+3:  'WIFI_ERR_INIT',
         ERR+4:  'WIFI_ERR_CONNECT_FAIL',
         END-1:  'ESP8266_ERR_UNKNOWN'
+    },
+    'SLEEP': {
+        INFO:   'SLEEP_INFO_OK',
+        WARN-1: 'SLEEP_INFO_UNKNOWN',
+        ERR-1:  'SLEEP_WARN_UNKNOWN',
+        END-1:  'SLEEP_ERR_UNKNOWN'
     },
 
 }
