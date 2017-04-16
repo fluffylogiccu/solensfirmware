@@ -15,6 +15,7 @@
 #include "err.h"
 #include "sleep.h"
 #include "log.h"
+#include "cmd.h"
 #include <stdint.h>
 #include <time.h>
 
@@ -85,7 +86,7 @@ sleep_status_t sleep_rtcInit() {
     RTC_DateStructure.RTC_WeekDay = info->tm_wday;
     RTC_SetDate(RTC_Format_BCD, &RTC_DateStructure);
 
-    sleep_alarmTime = ntptime + 30;
+    sleep_alarmTime = ntptime + 60 - info->tm_sec;
     struct tm *info_next;
     info_next = localtime(&sleep_alarmTime);
 
@@ -148,6 +149,8 @@ void RTC_Alarm_IRQHandler(void)
     /* Disable the Alarm A */
     RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
 
+    log_Log(SLEEP, SLEEP_INFO_OK, "30 second interrupt\0");
+
     sleep_alarmTime = sleep_alarmTime + 30;
     struct tm *info_next;
     info_next = localtime(&sleep_alarmTime);
@@ -177,7 +180,35 @@ void RTC_Alarm_IRQHandler(void)
     /* Clear RTC Alarm Flag */
     RTC_ClearFlag(RTC_FLAG_ALRAF);
 
-    log_Log(SLEEP, SLEEP_INFO_OK, "30 second interrupt\0");
+    /* queue capture command */
+    cmd_cmd_t *capture;
+    cmd_status_t st = cmd_CmdAllocate(&capture, 0);
+    if (st != CMD_INFO_OK) {
+        log_Log(CMD, st, "Could not queue image capture command.\0");
+    }
+    capture->cmd_module = CAM;
+    capture->cmd_func = CAM_FUNC_CAPTURE;
+    capture->cmd_dataLen = 0;
+    st = cmd_QueuePut(capture);
+    if (st != CMD_INFO_OK) {
+        log_Log(CMD, st, "Could not add command to queue.\0");
+    }
+
+    /* queue transfer command */
+    /*cmd_cmd_t *transfer;
+    st = cmd_CmdAllocate(&transfer, 0);
+    if (st != CMD_INFO_OK) {
+        log_Log(CMD, st, "Could not queue image transfer command.\0");
+    }
+    capture->cmd_module = CAM;
+    capture->cmd_func = CAM_FUNC_TRANSFER;
+    capture->cmd_dataLen = 0;
+    st = cmd_QueuePut(transfer);
+    if (st != CMD_INFO_OK) {
+        log_Log(CMD, st, "Could not add command to queue.\0");
+    }*/
+
+
 
   }
 }

@@ -382,14 +382,14 @@ def open_com():
 
 def open_socket():
     global sock
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(('', 8888))
-    sock.listen(1)
+    #sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #sock.bind(('', 8888))
+    #sock.listen(1)
 
-    global tt
-    tt = threading.Thread(target=proc_socket)
-    tt.daemon = True
-    tt.start()
+    #global tt
+    #tt = threading.Thread(target=proc_socket)
+    #tt.daemon = True
+    #tt.start()
 
 #######################################
 # Thread functions section

@@ -111,6 +111,13 @@ int main() {
         log_Log(CAM, cam_st, "Could not initialize camera module.\0");
     }
 
+    cam_st = cam_Configure();
+    if (cam_st == CAM_INFO_OK) {
+        log_Log(CAM, CAM_INFO_OK, "Configured camera module.\0");
+    } else {
+        log_Log(CAM, cam_st, "Could not initialize camera module.\0");
+    }
+
     #ifdef __WIFI
     wifi_status_t w_st = wifi_Init();
     if (w_st == WIFI_INFO_OK) {
