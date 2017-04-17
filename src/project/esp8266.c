@@ -300,23 +300,24 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
         i++;
     }
 	*/
-	publishing = true;
-	uint32_t count = 0;
+
+	char meep = 'e';
+	mqtt_publish("imgstart", (uint8_t*)&meep, 1, 0, 0);
+	esp8266_Wait_Return(10);
+
+
 	uint8_t *dataPointer = wifi_packet->wifi_packet_data;
-	uint32_t dataLen = 0;
-	uint8_t len_array[4] = {wifi_packet->wifi_packet_dataLen & 0xff, \
-							wifi_packet->wifi_packet_dataLen & 0xff00, \
-							wifi_packet->wifi_packet_dataLen & 0xff0000, \
-							wifi_packet->wifi_packet_dataLen & 0xff000000};
-	mqtt_publish("imgstart", len_array, 4, 0, 0);
-	while(count < wifi_packet->wifi_packet_dataLen){
-		dataLen = (wifi_packet->wifi_packet_dataLen - count ) > MAX_PACKET_SIZE ? MAX_PACKET_SIZE : (wifi_packet->wifi_packet_dataLen - count);
+	volatile uint32_t dataLen = 0;
+
+	uint32_t i = 0;
+	/*Make sure MAX_PACKET_SIZE is a multiple of 2 * image width*/
+	for(i = 0; i < wifi_packet->wifi_packet_dataLen; i+=MAX_PACKET_SIZE){
+		dataLen = (wifi_packet->wifi_packet_dataLen - i ) > MAX_PACKET_SIZE ? MAX_PACKET_SIZE : (wifi_packet->wifi_packet_dataLen - i);
 		mqtt_publish("img", dataPointer, dataLen, 0, 0);
 		dataPointer += dataLen;
-		count += dataLen;
-		esp8266_Process();
+		esp8266_Wait_Return(10);
 	}
-	mqtt_publish("imgend", len_array, 4, 0, 0);
+	mqtt_publish("imgend", (uint8_t*)&meep, 1, 0, 0);
 
     #endif
 
@@ -430,11 +431,11 @@ esp8266_status_t esp8266_Init() {
 
 
 	mqtt_setup();
-	esp8266_Wait_Return();
+	esp8266_Wait_Return(ESP_TIMEOUT);
 
 	uint8_t buf[12] = "Testmessage\0";
 	mqtt_publish("test topic", buf, 12, 0, 0);
-	esp8266_Wait_Return();
+	esp8266_Wait_Return(ESP_TIMEOUT);
 
     #endif
 
@@ -453,7 +454,7 @@ bool esp8266_Sync(){
 		syncing = true;
 
 		slip_packet_t *packet;
-		while((packet = esp8266_Wait_Return()) != NULL){
+		while((packet = esp8266_Wait_Return(ESP_TIMEOUT)) != NULL){
 			if(packet->value == (uint32_t)&esp8266_WifiCb){
 				syncing = false;
 				return true;
@@ -507,9 +508,9 @@ void esp8266_Request0(void){
 	esp8266_Raw_Send(SLIP_END);
 }
 
-slip_packet_t *esp8266_Wait_Return(void){
+slip_packet_t *esp8266_Wait_Return(uint32_t timeout){
 	uint32_t count = 0;
-	while(count < ESP_TIMEOUT){
+	while(count < timeout){
 		slip_packet_t *packet = esp8266_Process();
 		if(packet != NULL) return packet;
 		count++;
@@ -561,7 +562,7 @@ uint32_t esp8266_GetTime(){
 	esp8266_Request0();
 
 
-	slip_packet_t *pkt = esp8266_Wait_Return();
+	slip_packet_t *pkt = esp8266_Wait_Return(ESP_TIMEOUT);
 	return pkt ? pkt->value : 0;
 }
 

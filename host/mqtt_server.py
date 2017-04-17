@@ -44,6 +44,7 @@ def on_message(client, userdata, msg):
         print(msg.payload)
         serial_list = b''
         serial_count = 0
+        serial_fifo.read(len(serial_fifo))
     elif(msg.topic == 'imgend'):
         print('Recieved whole image')
         display_image(serial_fifo.read(len(serial_fifo)))

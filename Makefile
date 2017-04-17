@@ -48,7 +48,7 @@ BOARD=S0LENS_A
 COMP_FLAGS = STM32F429_439xx USE_STDPERIPH_DRIVER HSE_VALUE=8000000
 
 ifeq ($(DEBUG),FALSE)
-  DEBUG_FLAGS = -O2
+  DEBUG_FLAGS = -O0
 else
   ifeq ($(DEBUG),TRUE)
     DEBUG_FLAGS = -g
@@ -141,7 +141,7 @@ CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16 -specs=nosys.specs
 CFLAGS += $(addprefix -I, $(INC_DIR))
 CFLAGS += $(addprefix -D, $(COMP_FLAGS))
-CFLAGS += -fvar-tracking
+CFLAGS += -fvar-tracking -O0
 
 RM_F = rm -f
 MKDIR_P = mkdir -p

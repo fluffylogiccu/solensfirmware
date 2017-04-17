@@ -195,18 +195,18 @@ void RTC_Alarm_IRQHandler(void)
     }
 
     /* queue transfer command */
-    /*cmd_cmd_t *transfer;
+    cmd_cmd_t *transfer;
     st = cmd_CmdAllocate(&transfer, 0);
     if (st != CMD_INFO_OK) {
         log_Log(CMD, st, "Could not queue image transfer command.\0");
     }
-    capture->cmd_module = CAM;
-    capture->cmd_func = CAM_FUNC_TRANSFER;
-    capture->cmd_dataLen = 0;
+    transfer->cmd_module = CAM;
+    transfer->cmd_func = CAM_FUNC_TRANSFER;
+    transfer->cmd_dataLen = 0;
     st = cmd_QueuePut(transfer);
     if (st != CMD_INFO_OK) {
         log_Log(CMD, st, "Could not add command to queue.\0");
-    }*/
+    }
 
 
 
