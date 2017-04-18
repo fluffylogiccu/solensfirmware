@@ -25,8 +25,8 @@ PROF=TRUE
 
 # Unit tests enabled
 # Options are TRUE, FALSE
-# Default is TRUE
-TEST=TRUE
+# Default is FALSE
+TEST=FALSE
 
 # Camera module
 # Options are OV5642, OV7670

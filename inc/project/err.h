@@ -221,6 +221,7 @@ typedef enum sleep_status_e {
 
     SLEEP_WARN_UNKNOWN = ERR-1,
 
+    SLEEP_ERROR_SLEEP = ERR,
     SLEEP_ERR_UNKNOWN = END-1,
 } sleep_status_t;
 

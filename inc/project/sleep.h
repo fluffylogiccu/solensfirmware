@@ -25,6 +25,20 @@
  * Private functions
  */
 
+ /** @brief Initialize rtc
+  *
+  *  @return a status code of type sleep_status_t
+  */
+sleep_status_t sleep_rtcInit();
+
+/** @brief Get the time from the network
+ *
+ *  Gets initial time on wakeup.
+ *
+ *  @return a status code of type sleep_status_t
+ */
+sleep_status_t sleep_timeInit();
+
 /**************************************
  * Public functions
  */
@@ -39,5 +53,14 @@
  *  @return a status code of type sleep_status_t
  */
 sleep_status_t sleep_Init();
+
+/** @brief Power down into standby mode
+ *
+ *  This function should be called at the very end of a
+ *  image cycle.
+ *
+ *  @return a status code of type sleep_status_t
+ */
+sleep_status_t sleep_Standby();
 
 # endif /* __SLEEP_H */

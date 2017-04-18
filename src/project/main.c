@@ -136,7 +136,30 @@ int main() {
         log_Log(SLEEP, sl_st, "Could not initialize sleep module.\0");
     }
 
-    // Start main loop
+    /* Capture and transfor */
+    cam_st = cam_Capture();
+    if (cam_st == CAM_INFO_OK) {
+        log_Log(CAM, CAM_INFO_OK, "Captured image.\0");
+    } else {
+        log_Log(CAM, cam_st, "Could not capture image.\0");
+    }
+
+    cam_st = cam_Transfer();
+    if (cam_st == CAM_INFO_OK) {
+        log_Log(CAM, CAM_INFO_OK, "Transferred image.\0");
+    } else {
+        log_Log(CAM, cam_st, "Could not transfer image.\0");
+    }
+
+    /* Go to sleep */
+    sl_st = sleep_Standby();
+    if (sl_st == SLEEP_INFO_OK) {
+        log_Log(SLEEP, SLEEP_INFO_OK, "Successful sleep.\0");
+    } else {
+        log_Log(SLEEP, sl_st, "Could not enter standby mode.\0");
+    }
+
+    // Start main loop, shouldn't occur in normal operation
     cmd_status_t cmd_st = cmd_Loop();
     if (cmd_st != CMD_INFO_OK) {
         log_Log(CMD, cmd_st, "Exiting main.\0");

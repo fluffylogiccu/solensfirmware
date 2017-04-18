@@ -19,29 +19,47 @@
 #include <stdint.h>
 #include <time.h>
 
+// Wakup time
 static time_t sleep_alarmTime;
 
 /**************************************
  * Private functions
  */
 
+sleep_status_t sleep_timeInit() {
+
+    sleep_alarmTime = esp8266_GetTime();
+    struct tm *info;
+    info = localtime(&sleep_alarmTime);
+
+    return SLEEP_INFO_OK;
+}
+
 sleep_status_t sleep_rtcInit() {
 
-    RTC_TimeTypeDef RTC_TimeStructure;
+/*    RTC_TimeTypeDef RTC_TimeStructure;
     RTC_InitTypeDef RTC_InitStructure;
     RTC_DateTypeDef RTC_DateStructure;
     RTC_AlarmTypeDef RTC_AlarmStructure;
     NVIC_InitTypeDef  NVIC_InitStructure;
-    EXTI_InitTypeDef  EXTI_InitStructure;
+    EXTI_InitTypeDef  EXTI_InitStructure; */
 
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
+
+    log_Log(SLEEP, SLEEP_INFO_OK, "RTC INIT");
+
+    RTC_ClearITPendingBit(RTC_IT_WUT);
+    EXTI_ClearITPendingBit(EXTI_Line22);
 
     /* Allow access to RTC */
     PWR_BackupAccessCmd(ENABLE);
 
     /* Reset RTC Domain */
-    //RCC_BackupResetCmd(ENABLE);
-    //RCC_BackupResetCmd(DISABLE);
+    RCC_BackupResetCmd(ENABLE);
+    RCC_BackupResetCmd(DISABLE);
+
+    /* Allow access to RTC */
+    PWR_BackupAccessCmd(ENABLE);
 
     /* Enable the LSE OSC */
     RCC_LSEConfig(RCC_LSE_ON);
@@ -51,9 +69,9 @@ sleep_status_t sleep_rtcInit() {
     {
     }
 
+
     /* Select the RTC Clock Source */
     RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
-    //RCC_RTCCLKConfig(RCC_RTCCLKSource_HSE_Div31);
 
     /* Enable the RTC Clock */
      RCC_RTCCLKCmd(ENABLE);
@@ -61,20 +79,57 @@ sleep_status_t sleep_rtcInit() {
      /* Wait for RTC APB registers synchronisation */
      RTC_WaitForSynchro();
 
+     /* EXTI configuration *******************************************************/
+     /*EXTI_ClearITPendingBit(EXTI_Line22);
+     EXTI_InitStructure.EXTI_Line = EXTI_Line22;
+     EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+     EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
+     EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+     EXTI_Init(&EXTI_InitStructure);
+
+     /* Enable the RTC Wakeup Interrupt */
+     /*NVIC_InitStructure.NVIC_IRQChannel = RTC_WKUP_IRQn;
+     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+     NVIC_Init(&NVIC_InitStructure);
+
+     /* Enable Wakeup Counter */
+     //RTC_WakeUpCmd(DISABLE);
+
+#if 0
+     RTC_WakeUpClockConfig(RTC_WakeUpClock_RTCCLK_Div16);
+     RTC_SetWakeUpCounter(0xA000-1);
+
+     /* Enable the Wakeup Interrupt */
+     RTC_ITConfig(RTC_IT_WUT, ENABLE);
+
+     /* Enable Wakeup Counter */
+     RTC_WakeUpCmd(ENABLE);
+
+     /* Clear WakeUp (WUTF) pending flag */
+     RTC_ClearFlag(RTC_FLAG_WUTF);
+     PWR_ClearFlag(PWR_FLAG_WU | PWR_FLAG_SB);
+
+     /* Request to enter STANDBY mode (Wake Up flag is cleared in PWR_EnterSTANDBYMode function) */
+     PWR_EnterSTANDBYMode();
+#endif
+
+
     /* Configure the RTC data register and RTC prescaler */
     /* ck_spre(1Hz) = RTCCLK(LSI) /(AsynchPrediv + 1)*(SynchPrediv + 1)*/
-    RTC_InitStructure.RTC_AsynchPrediv = 0x7F;
+/*    RTC_InitStructure.RTC_AsynchPrediv = 0x7F;
     RTC_InitStructure.RTC_SynchPrediv  = 0xFF;
     RTC_InitStructure.RTC_HourFormat   = RTC_HourFormat_24;
     RTC_Init(&RTC_InitStructure);
-
+*/
     /* Get time from network */
-    time_t ntptime = esp8266_GetTime();
+/*    time_t ntptime = esp8266_GetTime();
     struct tm *info;
     info = localtime(&ntptime);
-
+*/
     /* Set the time to 00h 00mn 00s AM */
-    RTC_TimeStructure.RTC_H12     = RTC_H12_AM;
+    /*RTC_TimeStructure.RTC_H12     = RTC_H12_AM;
     RTC_TimeStructure.RTC_Hours   = info->tm_hour;
     RTC_TimeStructure.RTC_Minutes = info->tm_min;
     RTC_TimeStructure.RTC_Seconds = info->tm_sec;
@@ -89,6 +144,16 @@ sleep_status_t sleep_rtcInit() {
     sleep_alarmTime = ntptime + 60 - info->tm_sec;
     struct tm *info_next;
     info_next = localtime(&sleep_alarmTime);
+*/
+    /* RTC Wakeup Interrupt Generation: Clock Source: RTCCLK_Div16, Wakeup Time Base: ~20s
+     RTC Clock Source LSE 32.768 kHz
+     Wakeup Time Base = (16 / (LSE)) * WakeUpCounter
+  */
+
+
+
+
+#if 0
 
     /* Disable the Alarm A */
     RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
@@ -133,10 +198,23 @@ sleep_status_t sleep_rtcInit() {
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
+#endif
 
     return SLEEP_INFO_OK;
 }
 
+void RTC_WKUP_IRQHandler(void)
+{
+  log_Log(SLEEP, SLEEP_INFO_OK, "ABOUT TO RESET RCT_IT_WUT");
+  if(RTC_GetITStatus(RTC_IT_WUT) != RESET)
+  {
+
+    RTC_ClearITPendingBit(RTC_IT_WUT);
+    EXTI_ClearITPendingBit(EXTI_Line22);
+  }
+}
+
+#if 0
 void RTC_Alarm_IRQHandler(void)
 {
   if(RTC_GetITStatus(RTC_IT_ALRA) != RESET)
@@ -208,10 +286,9 @@ void RTC_Alarm_IRQHandler(void)
         log_Log(CMD, st, "Could not add command to queue.\0");
     }
 
-
-
   }
 }
+#endif
 
 /**************************************
  * Public functions
@@ -219,8 +296,34 @@ void RTC_Alarm_IRQHandler(void)
 
 sleep_status_t sleep_Init() {
     sleep_rtcInit();
-
+    sleep_timeInit();
 
     return SLEEP_INFO_OK;
+}
 
+sleep_status_t sleep_Standby() {
+
+    log_Log(SLEEP, SLEEP_INFO_OK, "Preparing to enter standby mode.\0");
+
+    /* Enable Wakeup Counter */
+    RTC_WakeUpCmd(DISABLE);
+
+    RTC_WakeUpClockConfig(RTC_WakeUpClock_RTCCLK_Div16);
+    RTC_SetWakeUpCounter(0xA000-1);
+
+    /* Enable the Wakeup Interrupt */
+    RTC_ITConfig(RTC_IT_WUT, ENABLE);
+
+    /* Enable Wakeup Counter */
+    RTC_WakeUpCmd(ENABLE);
+
+    /* Clear WakeUp (WUTF) pending flag */
+    RTC_ClearFlag(RTC_FLAG_WUTF);
+    PWR_ClearFlag(PWR_FLAG_WU | PWR_FLAG_SB);
+
+    /* Request to enter STANDBY mode (Wake Up flag is cleared in PWR_EnterSTANDBYMode function) */
+    PWR_EnterSTANDBYMode();
+
+    // Should never enter this case
+    return SLEEP_ERROR_SLEEP;
 }
