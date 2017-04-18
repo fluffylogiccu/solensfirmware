@@ -36,6 +36,8 @@
 
 #include <stdint.h>
 
+#define DELAY 10000000
+
 /**************************************
  * Private functions
  */
@@ -135,6 +137,8 @@ int main() {
     } else {
         log_Log(SLEEP, sl_st, "Could not initialize sleep module.\0");
     }
+
+    for (volatile int i = 0; i < DELAY; i++) {}
 
     /* Capture and transfor */
     cam_st = cam_Capture();
