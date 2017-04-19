@@ -47,7 +47,9 @@ def on_message(client, userdata, msg):
         serial_fifo.read(len(serial_fifo))
     elif(msg.topic == 'imgend'):
         print('Recieved whole image')
-        display_image(serial_fifo.read(len(serial_fifo)))
+        #display_image(serial_fifo.read(len(serial_fifo)))
+        print(len(serial_fifo))
+        print(time.strftime("%Y%m%d_%H%M%S", time.gmtime()))
     elif(msg.topic == 'img'):
         serial_count += len(msg.payload)
         serial_fifo.write(msg.payload)
@@ -56,6 +58,8 @@ def on_message(client, userdata, msg):
 def display_image(l):
     print(len(l))
     filename = 'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.raw'
+    pngname =  'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.png'
+
     with open(filename, "wb") as f:
         f.write(l)
 
@@ -78,6 +82,7 @@ def display_image(l):
     print("g is " + str(len(g)) + " bytes")
     im = Image.frombytes("L", (320,240), g)
     im.show()
+    im.save(pngname)
 
 
 if __name__ == '__main__':

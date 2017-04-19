@@ -45,7 +45,7 @@ sleep_status_t sleep_rtcInit() {
 
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
 
-    log_Log(SLEEP, SLEEP_INFO_OK, "RTC INIT");
+    log_Log(SLEEP, SLEEP_INFO_OK, "RTC initialization.\0");
 
     RTC_ClearITPendingBit(RTC_IT_WUT);
     EXTI_ClearITPendingBit(EXTI_Line22);
@@ -67,6 +67,8 @@ sleep_status_t sleep_rtcInit() {
     while(RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET)
     {
     }
+
+    log_Log(SLEEP, SLEEP_INFO_OK, "LSE clock ready.\0");
 
     /* Select the RTC Clock Source */
     RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
@@ -110,7 +112,7 @@ sleep_status_t sleep_rtcInit() {
     RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
 
     /* go back to bed */
-    if (info_next->tm_hour > 19 || info_next->tm_hour < 7) {
+    if (info_next->tm_hour > 23 || info_next->tm_hour < 7) {
         /* Set the alarm to the morning */
         RTC_AlarmStructure.RTC_AlarmTime.RTC_H12     = RTC_H12_AM;
         RTC_AlarmStructure.RTC_AlarmTime.RTC_Hours   = 0;

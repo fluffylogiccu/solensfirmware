@@ -14,6 +14,7 @@
 
 #include "esp8266.h"
 #include "stm32f4xx_rcc.h"
+#include "sleep.h"
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_usart.h"
 #include "wifi.h"
@@ -29,11 +30,100 @@ uint16_t crc;
 bool syncing = false;
 bool wifiConnected = false;
 bool publishing = false;
+bool initial_callback_flag = false;
 
 /**************************************
  * Private functions
  */
 
+esp8266_status_t esp8266_setRTC() {
+	RTC_TimeTypeDef RTC_TimeStructure;
+    RTC_InitTypeDef RTC_InitStructure;
+    RTC_DateTypeDef RTC_DateStructure;
+    RTC_AlarmTypeDef RTC_AlarmStructure;
+
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
+
+    log_Log(SLEEP, SLEEP_INFO_OK, "RTC initialization.\0");
+
+    RTC_ClearITPendingBit(RTC_IT_WUT);
+    EXTI_ClearITPendingBit(EXTI_Line22);
+
+    /* Allow access to RTC */
+    PWR_BackupAccessCmd(ENABLE);
+
+    /* Reset RTC Domain */
+    RCC_BackupResetCmd(ENABLE);
+    RCC_BackupResetCmd(DISABLE);
+
+    /* Allow access to RTC */
+    PWR_BackupAccessCmd(ENABLE);
+
+    /* Enable the LSE OSC */
+    RCC_LSEConfig(RCC_LSE_ON);
+
+    /* Wait till LSE is ready */
+    while(RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET)
+    {
+    }
+
+    log_Log(SLEEP, SLEEP_INFO_OK, "LSE clock ready.\0");
+
+    /* Select the RTC Clock Source */
+    RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
+
+    /* Enable the RTC Clock */
+     RCC_RTCCLKCmd(ENABLE);
+
+     /* Wait for RTC APB registers synchronisation */
+     RTC_WaitForSynchro();
+
+    /* Configure the RTC data register and RTC prescaler */
+    /* ck_spre(1Hz) = RTCCLK(LSI) /(AsynchPrediv + 1)*(SynchPrediv + 1)*/
+    RTC_InitStructure.RTC_AsynchPrediv = 0x7F;
+    RTC_InitStructure.RTC_SynchPrediv  = 0xFF;
+    RTC_InitStructure.RTC_HourFormat   = RTC_HourFormat_24;
+    RTC_Init(&RTC_InitStructure);
+
+    /* Set the time to 00h 00mn 00s AM */
+    RTC_TimeStructure.RTC_H12     = RTC_H12_AM;
+    RTC_TimeStructure.RTC_Hours   = 0;
+    RTC_TimeStructure.RTC_Minutes = 0;
+    RTC_TimeStructure.RTC_Seconds = 30;
+    RTC_SetTime(RTC_Format_BCD, &RTC_TimeStructure);
+
+    /*RTC_DateStructure.RTC_Year = 117;
+    RTC_DateStructure.RTC_Month = 7;
+    RTC_DateStructure.RTC_Date = 1;
+    RTC_DateStructure.RTC_WeekDay = info->tm_wday;
+    RTC_SetDate(RTC_Format_BCD, &RTC_DateStructure); */
+
+    /* Disable the Alarm A */
+    RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
+
+    /* Set the alarm for every minute at 0 sec */
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_H12     = RTC_H12_AM;
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_Hours   = 6;
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_Minutes = 7;
+    RTC_AlarmStructure.RTC_AlarmTime.RTC_Seconds = 0; //info_next->tm_sec;
+    RTC_AlarmStructure.RTC_AlarmDateWeekDay = 1;
+    RTC_AlarmStructure.RTC_AlarmDateWeekDaySel = RTC_AlarmDateWeekDaySel_Date;
+    RTC_AlarmStructure.RTC_AlarmMask = RTC_AlarmMask_DateWeekDay | RTC_AlarmMask_Hours | RTC_AlarmMask_Minutes;
+
+    /* Configure the RTC Alarm A register */
+    RTC_SetAlarm(RTC_Format_BIN, RTC_Alarm_A, &RTC_AlarmStructure);
+
+    /* Enable RTC Alarm A Interrupt */
+    RTC_ITConfig(RTC_IT_ALRA, ENABLE);
+
+    /* Enable the alarm */
+    RTC_AlarmCmd(RTC_Alarm_A, ENABLE);
+
+    RTC_ClearFlag(RTC_FLAG_ALRAF);
+
+	return ESP8266_INFO_OK;
+
+}
 
 esp8266_status_t esp8266_Slip_Init(){
 	proto.buf = protoBuf;
@@ -167,7 +257,14 @@ slip_packet_t *esp8266_protoCompletedCb(void){
 			//content with this if statement since we have limited funciton
 			//callbacks to keep track of
 			if(packet->value == (uint32_t)&esp8266_WifiCb){
-				wifi_status_t wifi_status = esp8266_WifiCb(packet);
+				wifi_status_t wifi_status;
+				if (initial_callback_flag == 0) {
+					wifi_status = esp8266_WifiCb(packet);
+					initial_callback_flag = 1;
+				} else {
+				/* if we lose connectivity go back to sleep */
+					sleep_Standby();
+				}
 				log_Log(WIFI, wifi_status);
 			} else if(packet->value == (uint32_t)&mqtt_connected_callback){
 				mqtt_connected_callback(packet);
@@ -301,10 +398,10 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
     }
 	*/
 
-	char meep = 'e';
-	mqtt_publish("imgstart", (uint8_t*)&meep, 1, 0, 0);
-	esp8266_Wait_Return(10);
-
+	//char meep = 'e';
+	uint8_t meep = 0x55;
+	mqtt_publish("imgstart", &meep, 1, 0, 0);
+	esp8266_Wait_Return(1000000);
 
 	uint8_t *dataPointer = wifi_packet->wifi_packet_data;
 	volatile uint32_t dataLen = 0;
@@ -315,9 +412,12 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 		dataLen = (wifi_packet->wifi_packet_dataLen - i ) > MAX_PACKET_SIZE ? MAX_PACKET_SIZE : (wifi_packet->wifi_packet_dataLen - i);
 		mqtt_publish("img", dataPointer, dataLen, 0, 0);
 		dataPointer += dataLen;
-		esp8266_Wait_Return(10);
+		esp8266_Wait_Return(10000);
 	}
-	mqtt_publish("imgend", (uint8_t*)&meep, 1, 0, 0);
+	esp8266_Wait_Return(10000);
+	char merp = 'f';
+	mqtt_publish("imgend", (uint8_t*)&merp, 1, 0, 0);
+	esp8266_Wait_Return(10000);
 
     #endif
 
@@ -422,6 +522,7 @@ esp8266_status_t esp8266_Init() {
 	//Setup SLIP
 	esp8266_Slip_Init();
 
+
 	//Sync with esp-link
 	bool ok;
 	do{
@@ -433,8 +534,8 @@ esp8266_status_t esp8266_Init() {
 	mqtt_setup();
 	esp8266_Wait_Return(ESP_TIMEOUT);
 
-	uint8_t buf[12] = "Testmessage\0";
-	mqtt_publish("test topic", buf, 12, 0, 0);
+	uint8_t buf[] = "Mornin'";
+	mqtt_publish("wake-up", buf, sizeof(buf), 0, 0);
 	esp8266_Wait_Return(ESP_TIMEOUT);
 
     #endif
@@ -521,6 +622,7 @@ slip_packet_t *esp8266_Wait_Return(uint32_t timeout){
 wifi_status_t esp8266_WifiCb(slip_packet_t *response){
 	//Function that will be called when the wifi changes state
 	if(response->argc == 1){
+		log_Log(WIFI, WIFI_INFO_OK, "Wifi callback\0");
 		uint8_t status = response->args[0];
 		switch (status) {
 			case STATION_IDLE:
@@ -540,6 +642,7 @@ wifi_status_t esp8266_WifiCb(slip_packet_t *response){
 				return WIFI_ERR_CONNECT_FAIL;
 			case STATION_GOT_IP:
 				wifiConnected = true;
+				log_Log(WIFI, WIFI_INFO_GOT_IP, "Wifi connected!\0");
 				return WIFI_INFO_GOT_IP;
 			default:
 				wifiConnected = false;
@@ -552,9 +655,9 @@ wifi_status_t esp8266_WifiCb(slip_packet_t *response){
 void esp8266_ResetCb(void){
 	//Callback that gets called when the esp gets reset and we need to sync
 	bool ok = false;
-	do {
+	//do {
 		ok = esp8266_Sync();
-	} while(!ok);
+	//} while(!ok);
 }
 
 uint32_t esp8266_GetTime(){
@@ -614,6 +717,7 @@ void mqtt_publish(const char* topic, const uint8_t* data, const uint16_t len, ui
 void mqtt_connected_callback(void *response){
 	log_Log(WIFI, WIFI_INFO_OK, "MQTT connected!\0");
 }
+
 
 void mqtt_disconnnected_callback(void *response){
 	log_Log(WIFI, WIFI_INFO_OK, "MQTT disconnected :'(\0");

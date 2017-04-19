@@ -15,7 +15,8 @@ SRCS := main.c \
 		stm32f4xx_pwr.c \
 		stm32f4xx_rcc.c \
 		stm32f4xx_gpio.c \
-		stm32f4xx_exti.c
+		stm32f4xx_exti.c \
+		stm32f4xx_usart.c
 
 ifeq ($(DEBUG),TRUE)
   ifneq ($(LOG),NONE)

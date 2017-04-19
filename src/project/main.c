@@ -156,6 +156,7 @@ int main() {
     }
 
     /* Go to sleep */
+
     sl_st = sleep_Standby();
     if (sl_st == SLEEP_INFO_OK) {
         log_Log(SLEEP, SLEEP_INFO_OK, "Successful sleep.\0");
