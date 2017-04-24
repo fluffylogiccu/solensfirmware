@@ -243,7 +243,7 @@ uint16_t crc16Data(const unsigned char *data, uint16_t len, uint16_t acc)
 slip_packet_t *esp8266_protoCompletedCb(void){
     slip_packet_t *packet = (slip_packet_t*)proto.buf;
     uint16_t crc = crc16Data(proto.buf, proto.dataLen-2, 0);
-
+	slip_response_t resp;
     uint16_t resp_crc = *(uint16_t*)(proto.buf+proto.dataLen-2);
     if(crc != resp_crc){
         return NULL;
@@ -256,10 +256,12 @@ slip_packet_t *esp8266_protoCompletedCb(void){
 			//They do some crazy stuff with function pointers and I am
 			//content with this if statement since we have limited funciton
 			//callbacks to keep track of
+
+			packet_to_response(packet, &resp);
 			if(packet->value == (uint32_t)&esp8266_WifiCb){
 				wifi_status_t wifi_status;
 				if (initial_callback_flag == 0) {
-					wifi_status = esp8266_WifiCb(packet);
+					wifi_status = esp8266_WifiCb(&resp);
 					initial_callback_flag = 1;
 				} else {
 				/* if we lose connectivity go back to sleep */
@@ -267,13 +269,13 @@ slip_packet_t *esp8266_protoCompletedCb(void){
 				}
 				log_Log(WIFI, wifi_status);
 			} else if(packet->value == (uint32_t)&mqtt_connected_callback){
-				mqtt_connected_callback(packet);
+				mqtt_connected_callback(&resp);
 			} else if(packet->value == (uint32_t)&mqtt_disconnnected_callback){
-				mqtt_disconnnected_callback(packet);
+				mqtt_disconnnected_callback(&resp);
 			} else if(packet->value == (uint32_t)&mqtt_published_callback){
-				mqtt_published_callback(packet);
+				mqtt_published_callback(&resp);
 			} else if(packet->value == (uint32_t)&mqtt_data_callback){
-				mqtt_data_callback(packet);
+				mqtt_data_callback(&resp);
 			}
             return NULL;
         case CMD_SYNC:
@@ -310,6 +312,30 @@ slip_packet_t *esp8266_Process(){
         }
     }
     return NULL;
+}
+
+void packet_to_response(slip_packet_t *packet, slip_response_t *resp){
+	resp->_cmd = packet;
+	resp->_arg_ptr = packet->args;
+	resp->_arg_num = 0;
+}
+
+int16_t popArg(slip_response_t* resp, void* d, uint16_t maxLen){
+	if(resp->_arg_num >= resp->_cmd->argc) return -1;
+
+	uint16_t len = *(uint16_t*)resp->_arg_ptr;
+	uint16_t pad = (4-((len+2)&3))&3;
+	resp->_arg_ptr += 2;
+	resp->_arg_num++;
+
+	uint8_t *data = (uint8_t *)d;
+	uint16_t l = len > maxLen ? maxLen : len;
+	uint8_t *p = resp->_arg_ptr;
+	while(l--)
+		*data++ = *p++;
+
+	resp->_arg_ptr += len + pad;
+	return len;
 }
 
 esp8266_status_t esp8266_Raw_Send(uint16_t data){
@@ -619,11 +645,12 @@ slip_packet_t *esp8266_Wait_Return(uint32_t timeout){
 	return NULL;
 }
 
-wifi_status_t esp8266_WifiCb(slip_packet_t *response){
+wifi_status_t esp8266_WifiCb(slip_response_t *response){
 	//Function that will be called when the wifi changes state
-	if(response->argc == 1){
+	if(response->_cmd->argc == 1){
 		log_Log(WIFI, WIFI_INFO_OK, "Wifi callback\0");
-		uint8_t status = response->args[0];
+		uint8_t status;
+		popArg(response, &status, 1);
 		switch (status) {
 			case STATION_IDLE:
 				wifiConnected = false;

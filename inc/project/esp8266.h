@@ -77,11 +77,18 @@ typedef struct {
 } slip_protocol_t; /**< Protocol structure  */
 
 typedef struct PACKED {
+  //Fields from the el-client packet struct
   uint16_t cmd;            /**< Command to execute */
   uint16_t argc;           /**< Number of arguments */
   uint32_t value;          /**< Callback to invoke, NULL if none; or response value */
   uint8_t  args[0];        /**< Arguments */
 } slip_packet_t; /**< Packet structure  */
+
+typedef struct RESPONSE {
+    uint16_t _arg_num;
+    uint8_t* _arg_ptr;
+    slip_packet_t* _cmd;
+} slip_response_t;
 
 //Circular buffer
 typedef struct __attribute__ ((packed)) wifi_queue_s {
@@ -188,7 +195,9 @@ slip_packet_t *esp8266_protoCompletedCb(void);
 
 slip_packet_t *esp8266_Process(void);
 
+int16_t popArg(slip_response_t* packet, void* data, uint16_t maxLen);
 
+void packet_to_response(slip_packet_t *packet, slip_response_t *response);
 
 
 /**************************************
@@ -265,7 +274,7 @@ void esp8266_Request0(void);
 slip_packet_t *esp8266_Wait_Return(uint32_t timeout);
 
 
-wifi_status_t esp8266_WifiCb(slip_packet_t *response);
+wifi_status_t esp8266_WifiCb(slip_response_t *response);
 
 void esp8266_ResetCb(void);
 
