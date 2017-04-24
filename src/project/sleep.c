@@ -86,10 +86,14 @@ sleep_status_t sleep_rtcInit() {
     RTC_InitStructure.RTC_HourFormat   = RTC_HourFormat_24;
     RTC_Init(&RTC_InitStructure);
 
+    time_t ntptime = 0;
+    #ifdef __WIFI
     /* Get time from network */
-    time_t ntptime = esp8266_GetTime();
+    ntptime = esp8266_GetTime();
+    #endif
     struct tm *info;
     info = localtime(&ntptime);
+
 
     /* Set the time to 00h 00mn 00s AM */
     RTC_TimeStructure.RTC_H12     = RTC_H12_AM;
@@ -112,7 +116,7 @@ sleep_status_t sleep_rtcInit() {
     RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
 
     /* go back to bed */
-    if (info_next->tm_hour > 23 || info_next->tm_hour < 7) {
+    if (info_next->tm_hour > 19 || info_next->tm_hour < 7) {
         /* Set the alarm to the morning */
         RTC_AlarmStructure.RTC_AlarmTime.RTC_H12     = RTC_H12_AM;
         RTC_AlarmStructure.RTC_AlarmTime.RTC_Hours   = 0;

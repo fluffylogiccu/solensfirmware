@@ -1,9 +1,9 @@
 /** @file ov5642.c
- * 
+ *
  *  @brief Implemenation of the ov5642 camera functions.
  *
  *  This file implements functionality of the ov5642
- *  camera module. For function descriptions, see the 
+ *  camera module. For function descriptions, see the
  *  ov5642.h file in the include directory.
  *
  *  @author Ben Heberlein
@@ -46,7 +46,7 @@ ov5642_status_t ov5642_clockInit() {
     // Enable GPIO clock
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 
-    // Map alternate function 
+    // Map alternate function
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource8, GPIO_AF_MCO);
 
     // Configure PA8
@@ -70,7 +70,7 @@ ov5642_status_t ov5642_clockInit() {
     // Enable GPIO clock
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 
-    // Map alternate function 
+    // Map alternate function
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource8, GPIO_AF_MCO);
 
     // Configure PA8
@@ -88,7 +88,7 @@ ov5642_status_t ov5642_clockInit() {
 
 ov5642_status_t ov5642_dmaInit() {
     DMA_InitTypeDef dmaInit;
-    
+
     /* We are going to use DMA2, Stream 1, Channel 1
      * to handle DCMI DMA requests. See page 310 of
      * the STM32F4 family reference manual RM0090. */
@@ -146,11 +146,13 @@ ov5642_status_t ov5642_dcmiInit() {
      * D0       | PC6
      **********************************/
 
+
+
     // Enable GPIO clocks
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA |
                            RCC_AHB1Periph_GPIOB |
                            RCC_AHB1Periph_GPIOC |
-                           RCC_AHB1Periph_GPIOD, 
+                           RCC_AHB1Periph_GPIOD,
                            ENABLE);
 
     // Send clock to DCMI
@@ -166,7 +168,7 @@ ov5642_status_t ov5642_dcmiInit() {
     gpioInit.GPIO_OType = GPIO_OType_PP;
     gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
 
-    GPIO_Init(GPIOA, &gpioInit); 
+    GPIO_Init(GPIOA, &gpioInit);
 
     // Port B
     GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_DCMI); // VSYNC
@@ -179,7 +181,7 @@ ov5642_status_t ov5642_dcmiInit() {
     gpioInit.GPIO_OType = GPIO_OType_PP;
     gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
 
-    GPIO_Init(GPIOB, &gpioInit); 
+    GPIO_Init(GPIOB, &gpioInit);
 
     // Port C
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource6, GPIO_AF_DCMI);  // D0
@@ -187,7 +189,7 @@ ov5642_status_t ov5642_dcmiInit() {
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource8, GPIO_AF_DCMI);  // D2
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource9, GPIO_AF_DCMI);  // D3
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_DCMI); // D4
-    
+
     gpioInit.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 |
                         GPIO_Pin_8 | GPIO_Pin_9 |
                         GPIO_Pin_11;
@@ -196,7 +198,7 @@ ov5642_status_t ov5642_dcmiInit() {
     gpioInit.GPIO_OType = GPIO_OType_PP;
     gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
 
-    GPIO_Init(GPIOC, &gpioInit); 
+    GPIO_Init(GPIOC, &gpioInit);
 
     // Port D
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource3, GPIO_AF_DCMI); // D5
@@ -207,7 +209,7 @@ ov5642_status_t ov5642_dcmiInit() {
     gpioInit.GPIO_OType = GPIO_OType_PP;
     gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
 
-    GPIO_Init(GPIOD, &gpioInit); 
+    GPIO_Init(GPIOD, &gpioInit);
 
     #endif
 
@@ -228,8 +230,26 @@ ov5642_status_t ov5642_dcmiInit() {
      * D0       | PC6
      **********************************/
 
+     GPIO_InitTypeDef GPIO_InitStructure;
+     /* GPIOD Periph clock enable */
+     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
+
+     /* Configure PD12, PD13, PD14 and PD15 in output pushpull mode */
+     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+     GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+     GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+     GPIO_Init(GPIOG, &GPIO_InitStructure);
+
+     /* PD12 to be toggled */
+     GPIO_ResetBits(GPIOG, GPIO_Pin_2);
+
+     uint32_t count = 100000;
+     while(count--){};
+
     // Enable GPIO clocks
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA |                         
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA |
                            RCC_AHB1Periph_GPIOC |
                            RCC_AHB1Periph_GPIOD |
                            RCC_AHB1Periph_GPIOE |
@@ -249,22 +269,22 @@ ov5642_status_t ov5642_dcmiInit() {
     gpioInit.GPIO_OType = GPIO_OType_PP;
     gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
 
-    GPIO_Init(GPIOA, &gpioInit); 
+    GPIO_Init(GPIOA, &gpioInit);
 
     // Port C
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource6, GPIO_AF_DCMI);  // D0
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource7, GPIO_AF_DCMI);  // D1
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource8, GPIO_AF_DCMI);  // D2
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_DCMI); // D4
-    
+
     gpioInit.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 |
-                        GPIO_Pin_8 | GPIO_Pin_11; 
+                        GPIO_Pin_8 | GPIO_Pin_11;
     gpioInit.GPIO_Mode = GPIO_Mode_AF;
     gpioInit.GPIO_Speed = GPIO_High_Speed;
     gpioInit.GPIO_OType = GPIO_OType_PP;
     gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
 
-    GPIO_Init(GPIOC, &gpioInit); 
+    GPIO_Init(GPIOC, &gpioInit);
 
     // Port D
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource3, GPIO_AF_DCMI); // D5
@@ -275,9 +295,9 @@ ov5642_status_t ov5642_dcmiInit() {
     gpioInit.GPIO_OType = GPIO_OType_PP;
     gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
 
-    GPIO_Init(GPIOD, &gpioInit); 
+    GPIO_Init(GPIOD, &gpioInit);
 
-    // Port E 
+    // Port E
     GPIO_PinAFConfig(GPIOE, GPIO_PinSource5, GPIO_AF_DCMI); // D6
     GPIO_PinAFConfig(GPIOE, GPIO_PinSource6, GPIO_AF_DCMI); // D7
 
@@ -287,7 +307,7 @@ ov5642_status_t ov5642_dcmiInit() {
     gpioInit.GPIO_OType = GPIO_OType_PP;
     gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
 
-    GPIO_Init(GPIOE, &gpioInit); 
+    GPIO_Init(GPIOE, &gpioInit);
 
     // Port G
     GPIO_PinAFConfig(GPIOG, GPIO_PinSource9, GPIO_AF_DCMI); // VSYNC
@@ -299,10 +319,10 @@ ov5642_status_t ov5642_dcmiInit() {
     gpioInit.GPIO_OType = GPIO_OType_PP;
     gpioInit.GPIO_PuPd = GPIO_PuPd_UP;
 
-    GPIO_Init(GPIOG, &gpioInit); 
+    GPIO_Init(GPIOG, &gpioInit);
 
     #endif
-    
+
     // Initialize DCMI
     DCMI_InitTypeDef dcmiInit;
 
@@ -428,7 +448,7 @@ ov5642_status_t ov5642_i2cStart(uint8_t address, uint8_t direction) {
         log_Log(OV5642, OV5642_ERR_I2CSTART, "Bad I2C direction.\0");
         return OV5642_ERR_I2CSTART;
     }
-    
+
     uint32_t timeout = OV5642_I2C_TIMEOUT;
 
     // Wait until I2C2 is not busy
@@ -462,14 +482,14 @@ ov5642_status_t ov5642_i2cStart(uint8_t address, uint8_t direction) {
             if (timeout-- == 0) {
                 log_Log(OV5642, OV5642_ERR_I2CTIMEOUT, "I2C timed out.\0");
                 return OV5642_ERR_I2CTIMEOUT;
-            }   
+            }
         }
     } else if (direction == I2C_Direction_Receiver)  {
         while (!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
             if (timeout-- == 0) {
                 log_Log(OV5642, OV5642_ERR_I2CTIMEOUT, "I2C timed out.\0");
                 return OV5642_ERR_I2CTIMEOUT;
-            }   
+            }
         }
     }
     #endif
@@ -504,14 +524,14 @@ ov5642_status_t ov5642_i2cStart(uint8_t address, uint8_t direction) {
             if (timeout-- == 0) {
                 log_Log(OV5642, OV5642_ERR_I2CTIMEOUT, "I2C timed out.\0");
                 return OV5642_ERR_I2CTIMEOUT;
-            }   
+            }
         }
     } else if (direction == I2C_Direction_Receiver)  {
         while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
             if (timeout-- == 0) {
                 log_Log(OV5642, OV5642_ERR_I2CTIMEOUT, "I2C timed out.\0");
                 return OV5642_ERR_I2CTIMEOUT;
-            }   
+            }
         }
     }
 
@@ -536,24 +556,24 @@ ov5642_status_t ov5642_i2cRead(uint8_t *data, uint8_t ack) {
         log_Log(OV5642, OV5642_ERR_I2CREAD, "Bad value for ack parameter.\0");
         return OV5642_ERR_I2CREAD;
     }
-   
-    uint32_t timeout = OV5642_I2C_TIMEOUT;            
+
+    uint32_t timeout = OV5642_I2C_TIMEOUT;
 
     #ifdef __STM32F429I_DISCOVERY
 
-    if (ack == OV5642_I2C_ACK) { 
+    if (ack == OV5642_I2C_ACK) {
         I2C_AcknowledgeConfig(I2C2, ENABLE);
     } else {
         I2C_AcknowledgeConfig(I2C2, DISABLE);
     }
-    
+
     // Wait for a byte
     timeout = OV5642_I2C_TIMEOUT;
     while (!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
         if (timeout-- == 0) {
             log_Log(OV5642, OV5642_ERR_I2CTIMEOUT, "I2C timed out.\0");
             return OV5642_ERR_I2CTIMEOUT;
-        }   
+        }
     }
 
     // Read and return byte
@@ -563,19 +583,19 @@ ov5642_status_t ov5642_i2cRead(uint8_t *data, uint8_t ack) {
 
     #ifdef __S0LENS_A
 
-    if (ack == OV5642_I2C_ACK) { 
+    if (ack == OV5642_I2C_ACK) {
         I2C_AcknowledgeConfig(I2C1, ENABLE);
     } else {
         I2C_AcknowledgeConfig(I2C1, DISABLE);
     }
-    
+
     // Wait for a byte
     timeout = OV5642_I2C_TIMEOUT;
     while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
         if (timeout-- == 0) {
             log_Log(OV5642, OV5642_ERR_I2CTIMEOUT, "I2C timed out.\0");
             return OV5642_ERR_I2CTIMEOUT;
-        }   
+        }
     }
 
     // Read and return byte
@@ -596,7 +616,7 @@ ov5642_status_t ov5642_i2cWrite(uint8_t data) {
         if (timeout-- == 0) {
             log_Log(OV5642, OV5642_ERR_I2CTIMEOUT, "I2C timed out.\0");
             return OV5642_ERR_I2CTIMEOUT;
-        }   
+        }
     }
     #endif
 
@@ -608,7 +628,7 @@ ov5642_status_t ov5642_i2cWrite(uint8_t data) {
         if (timeout-- == 0) {
             log_Log(OV5642, OV5642_ERR_I2CTIMEOUT, "I2C timed out.\0");
             return OV5642_ERR_I2CTIMEOUT;
-        }   
+        }
     }
 
     #endif
@@ -623,7 +643,7 @@ ov5642_status_t ov5642_regWrite(uint16_t address, uint8_t value) {
         ov5642_i2cStop();
         log_Log(OV5642, ret);
         return ret;
-    }   
+    }
 
     // Write address high order bits
     ret = ov5642_i2cWrite(address >> 8);
@@ -666,7 +686,7 @@ ov5642_status_t ov5642_regRead(uint16_t address, uint8_t *value) {
         ov5642_i2cStop();
         log_Log(OV5642, ret);
         return ret;
-    }   
+    }
 
     // Send address high order bits
     ret = ov5642_i2cWrite(address >> 8);

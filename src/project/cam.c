@@ -1,7 +1,7 @@
 /** @file cam.c
  *  @brief Implemenation of the camera functions.
  *
- *  This contains the implementations of the 
+ *  This contains the implementations of the
  *  camera functions. Different camera drivers are
  *  selected based on compiler directives.
  *
@@ -17,6 +17,7 @@
 #include "err.h"
 #include "log.h"
 #include "sdram.h"
+#include "stm32f4xx_gpio.h"
 #ifdef __OV7670
 #include "ov7670.h"
 #endif
@@ -109,7 +110,7 @@ cam_status_t cam_Capture() {
     if (cam_configured != 1) {
         return CAM_ERR_CONFIG;
     }
-    
+
     #ifdef __OV7670
     ov7670_status_t st = ov7670_Capture();
     if (st == OV7670_INFO_OK) {
@@ -139,11 +140,15 @@ cam_status_t cam_Transfer() {
     if (cam_configured != 1) {
         return CAM_ERR_CONFIG;
     }
-    
+
+
+    /* Power down the camera*/
+    GPIO_SetBits(GPIOG, GPIO_Pin_2);
+
     log_Log(CAM, CAM_INFO_OK, "Beginning image transfer.\0");
 
     #ifdef __WIFI
-    
+
     #ifdef __OV7670
     wifi_Send(CAM, CAM_WARN_UNKNOWN, "abcdefghijuklmnopqrstuvwxyz\0", 0, 0);
     wifi_Send(CAM, CAM_INFO_IMAGE, '\0', OV7670_IMAGE_BUFSIZE, (uint8_t *) SDRAM_IMAGEADDR);
@@ -155,7 +160,7 @@ cam_status_t cam_Transfer() {
 
     #else
 
-    #ifdef __OV7670    
+    #ifdef __OV7670
     log_Log(CAM, CAM_INFO_IMAGE, "\0", OV7670_IMAGE_BUFSIZE, (uint8_t *) SDRAM_IMAGEADDR);
     #endif
 
