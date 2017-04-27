@@ -170,6 +170,7 @@ log_status = {
         WARN:   'WIFI_WARN_ALINIT',
         WARN+1: 'WIFI_WARN_WRONG_PASSWORD',
         WARN+2: 'WIFI_WARN_NO_AP_FOUND',
+        WARN+3: 'WIFI_WARN_NO_SERVER_RESPONSE',
         ERR-1:  'WIFI_WARN_UNKNOWN',
         ERR:    'WIFI_ERR_DATASIZE',
         ERR+1:  'WIFI_ERR_MSGSIZE',

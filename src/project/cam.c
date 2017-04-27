@@ -142,8 +142,8 @@ cam_status_t cam_Transfer() {
     }
 
 
-    /* Power down the camera*/
-    GPIO_SetBits(GPIOG, GPIO_Pin_2);
+    // /* Power down the camera*/
+    // GPIO_SetBits(GPIOG, GPIO_Pin_2);
 
     log_Log(CAM, CAM_INFO_OK, "Beginning image transfer.\0");
 

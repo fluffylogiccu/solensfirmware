@@ -23,13 +23,14 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define ESP8266_BAUDRATE 115200
+#define ESP8266_BAUDRATE 230400
 #define SLIP_END      0300    /**< Indicates end of packet */
 #define SLIP_ESC      0333    /**< Indicates byte stuffing */
 #define SLIP_ESC_END  0334    /**< ESC ESC_END means END data byte */
 #define SLIP_ESC_ESC  0335    /**< ESC ESC_ESC means ESC data byte */
-#define ESP_TIMEOUT   200000 /**< Default timeout for TCP requests when waiting for a response */
-#define MAX_PACKET_SIZE 640     /*This needs to be a multiple of the image width times 2*/
+#define ESP_TIMEOUT   1000000 /**< Default timeout for TCP requests when waiting for a response */
+#define MAX_PACKET_SIZE 950     /*This needs to be a multiple of the image width times 2*/
+#define MAX_ATTEMPT 1000000
 
 // Enumeration of commands supported by esp-link, this needs to match the definition in
 // esp-link!
@@ -197,6 +198,8 @@ slip_packet_t *esp8266_Process(void);
 
 int16_t popArg(slip_response_t* packet, void* data, uint16_t maxLen);
 
+char* popString(slip_response_t* response);
+
 void packet_to_response(slip_packet_t *packet, slip_response_t *response);
 
 
@@ -305,6 +308,6 @@ void mqtt_disconnnected_callback(void *response);
 
 void mqtt_published_callback(void *response);
 
-void mqtt_data_callback(void *response);
+void mqtt_data_callback(slip_response_t *response);
 
 # endif /* _ESP8266__H */

@@ -29,7 +29,9 @@ uart_buffer_t rxBuffer;
 uint16_t crc;
 bool syncing = false;
 bool wifiConnected = false;
-bool publishing = false;
+bool recieved_start_ack = false;
+bool recieved_end_ack = false;
+bool recieved_data_ack = false;
 bool initial_callback_flag = false;
 
 /**************************************
@@ -338,6 +340,22 @@ int16_t popArg(slip_response_t* resp, void* d, uint16_t maxLen){
 	return len;
 }
 
+char* popString(slip_response_t *resp){
+
+	uint16_t len = *(uint16_t*)resp->_arg_ptr;
+	uint16_t pad = (4-((len+2)&3))&3;
+	resp->_arg_ptr += 2;
+	resp->_arg_num++;
+
+	char* ret = (char*)malloc(sizeof(char)*len);
+
+	strcpy(ret, (char*)resp->_arg_ptr);
+
+	resp->_arg_ptr += pad;
+	return ret;
+
+}
+
 esp8266_status_t esp8266_Raw_Send(uint16_t data){
 	while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
 	USART_SendData(USART1, data);
@@ -426,8 +444,20 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 
 	//char meep = 'e';
 	uint8_t meep = 0x55;
-	mqtt_publish("imgstart", &meep, 1, 0, 0);
-	esp8266_Wait_Return(1000000);
+	recieved_start_ack = false;
+	mqtt_publish("img/start", &meep, 1, 0, 0);
+	int attempt = 0;
+	while(true){
+		esp8266_Wait_Return(100000);
+		if(recieved_start_ack){
+			break;
+		} else if (attempt >= MAX_ATTEMPT){
+			log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "No response. going to sleep\0");
+			sleep_Standby();
+		} else {
+			attempt++;
+		}
+	}
 
 	uint8_t *dataPointer = wifi_packet->wifi_packet_data;
 	volatile uint32_t dataLen = 0;
@@ -435,15 +465,27 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 	uint32_t i = 0;
 	/*Make sure MAX_PACKET_SIZE is a multiple of 2 * image width*/
 	for(i = 0; i < wifi_packet->wifi_packet_dataLen; i+=MAX_PACKET_SIZE){
+		recieved_data_ack = false;
 		dataLen = (wifi_packet->wifi_packet_dataLen - i ) > MAX_PACKET_SIZE ? MAX_PACKET_SIZE : (wifi_packet->wifi_packet_dataLen - i);
-		mqtt_publish("img", dataPointer, dataLen, 0, 0);
+		mqtt_publish("img/data", dataPointer, dataLen, 0, 0);
 		dataPointer += dataLen;
-		esp8266_Wait_Return(10000);
+		attempt = 0;
+		while(true){
+			esp8266_Wait_Return(1000);
+			if(recieved_data_ack){
+				break;
+			} else if (attempt >= MAX_ATTEMPT){
+				log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "No response. going to sleep\0");
+				sleep_Standby();
+			} else {
+				attempt++;
+			}
+		}
+
 	}
-	esp8266_Wait_Return(10000);
 	char merp = 'f';
-	mqtt_publish("imgend", (uint8_t*)&merp, 1, 0, 0);
-	esp8266_Wait_Return(10000);
+	mqtt_publish("img/end", (uint8_t*)&merp, 1, 0, 0);
+	esp8266_Wait_Return(ESP_TIMEOUT);
 
     #endif
 
@@ -551,18 +593,27 @@ esp8266_status_t esp8266_Init() {
 
 	//Sync with esp-link
 	bool ok;
-	do{
-		ok = esp8266_Sync();
-		if(!ok) log_Log(WIFI, WIFI_ERR_UNKNOWN, "Unable to sync.\0");
-	} while(!ok);
+	//do{
+	ok = esp8266_Sync();
+	if(!ok){
+		log_Log(WIFI, WIFI_ERR_UNKNOWN, "Unable to sync.\0");
+		//sleep_Standby();
+	}
+	//} while(!ok);
 
 
 	mqtt_setup();
 	esp8266_Wait_Return(ESP_TIMEOUT);
 
 	uint8_t buf[] = "Mornin'";
-	mqtt_publish("wake-up", buf, sizeof(buf), 0, 0);
+	mqtt_publish("wake-up", buf, sizeof(buf), 2, 0);
 	esp8266_Wait_Return(ESP_TIMEOUT);
+
+	mqtt_subscribe("sunrise", 1);
+	//Ack channels for the image recieve
+	mqtt_subscribe("img/start/ack", 0);
+	mqtt_subscribe("img/data/ack", 0);
+	mqtt_subscribe("img/end/ack", 0);
 
     #endif
 
@@ -684,6 +735,7 @@ void esp8266_ResetCb(void){
 	bool ok = false;
 	//do {
 		ok = esp8266_Sync();
+		log_Log(WIFI, WIFI_INFO_UNKNOWN, "Esp needs sync!");
 	//} while(!ok);
 }
 
@@ -748,13 +800,26 @@ void mqtt_connected_callback(void *response){
 
 void mqtt_disconnnected_callback(void *response){
 	log_Log(WIFI, WIFI_INFO_OK, "MQTT disconnected :'(\0");
+	sleep_Standby();
 }
 
 void mqtt_published_callback(void *response){
-	publishing = false;
 	log_Log(WIFI, WIFI_INFO_OK, "MQTT published.\0");
 }
 
-void mqtt_data_callback(void *response){
-	log_Log(WIFI, WIFI_INFO_OK, "MQTT data.\0");
+void mqtt_data_callback(slip_response_t *response){
+	char* topic = popString(response);
+	char* img_start_ack = "img/start/ack";
+	char* img_data_ack = "img/data/ack";
+	char* img_end_ack = "img/end/ack";
+	if(strcmp(topic, img_start_ack) == 0){
+		recieved_start_ack = true;
+	} else if(strcmp(topic, img_data_ack) == 0){
+		recieved_data_ack = true;
+	} else if(strcmp(topic, img_end_ack)){
+		recieved_end_ack = true;
+	} else {
+		log_Log(WIFI, WIFI_INFO_OK, topic);
+	}
+	free(topic);
 }
