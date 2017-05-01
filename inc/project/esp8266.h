@@ -30,7 +30,8 @@
 #define SLIP_ESC_ESC  0335    /**< ESC ESC_ESC means ESC data byte */
 #define ESP_TIMEOUT   1000000 /**< Default timeout for TCP requests when waiting for a response */
 #define MAX_PACKET_SIZE 950     /*This needs to be a multiple of the image width times 2*/
-#define MAX_ATTEMPT 1000000
+#define MAX_ATTEMPT 10000
+#define RETRY_ATTEMPT 1000
 
 // Enumeration of commands supported by esp-link, this needs to match the definition in
 // esp-link!

@@ -155,7 +155,7 @@ cam_status_t cam_Transfer() {
     #endif
 
     #ifdef __OV5642
-    wifi_Send(CAM, CAM_INFO_IMAGE, '\0', OV5642_IMAGE_BUFSIZE, (uint8_t *) SDRAM_IMAGEADDR);
+    wifi_Send(CAM, CAM_INFO_IMAGE, '\0', OV5642_IMAGE_BUFSIZE*4, (uint8_t *) SDRAM_IMAGEADDR);
     #endif
 
     #else

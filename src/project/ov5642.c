@@ -27,6 +27,8 @@
 #include <stdint.h>
 
 //uint8_t temp_buffer[320*240*3];
+uint32_t currentDMA;
+uint8_t dmaState = 0;
 
 /**************************************
  * Private functions
@@ -117,13 +119,58 @@ ov5642_status_t ov5642_dmaInit() {
     dmaInit.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
     dmaInit.DMA_MemoryBurst = DMA_MemoryBurst_Single;
 
+    currentDMA = (uint32_t) SDRAM_IMAGEADDR + OV5642_IMAGE_BUFSIZE;
+
+    /* Double buffer mode */
+    DMA_DoubleBufferModeConfig(DMA2_Stream1, (uint32_t) SDRAM_IMAGEADDR + OV5642_IMAGE_BUFSIZE, DMA_Memory_0);
+    DMA_DoubleBufferModeCmd(DMA2_Stream1, ENABLE);
+
     // Initialize
     DMA_Init(DMA2_Stream1, &dmaInit);
+
+    /* Enable DMA Stream Transfer Complete interrupt */
+    DMA_ITConfig(DMA2_Stream1, DMA_IT_TC, ENABLE);
 
     // Enable
     DMA_Cmd(DMA2_Stream1, ENABLE);
 
+    /* Enable the DMA Stream IRQ Channel */
+    NVIC_InitTypeDef NVIC_InitStructure;
+    NVIC_InitStructure.NVIC_IRQChannel = DMA2_Stream1_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
+
     return OV5642_INFO_OK;
+}
+
+void DMA2_Stream1_IRQHandler() {
+    if (DMA_GetITStatus(DMA2_Stream1, DMA_IT_TCIF1)) {
+        /* Clear DMA Stream Transfer Complete interrupt pending bit */
+        DMA_ClearITPendingBit(DMA2_Stream1, DMA_IT_TCIF1);
+        log_Log(OV5642, OV5642_INFO_OK, "DAM Stream 1 IRQ.\0");
+
+        /*currentDMA += OV5642_IMAGE_BUFSIZE;
+        if (currentDMA >= (uint32_t) SDRAM_IMAGEADDR + 4*OV5642_IMAGE_BUFSIZE) {
+            currentDMA = (uint32_t) SDRAM_IMAGEADDR;
+        }*/
+
+        if (dmaState == 0) {
+            DMA_MemoryTargetConfig(DMA2_Stream1, (uint32_t) SDRAM_IMAGEADDR + 2*OV5642_IMAGE_BUFSIZE, DMA_Memory_0);
+            dmaState = 1;
+        } else if (dmaState == 1) {
+            DMA_MemoryTargetConfig(DMA2_Stream1, (uint32_t) SDRAM_IMAGEADDR + 3*OV5642_IMAGE_BUFSIZE, DMA_Memory_1);
+            dmaState = 2;
+        } else if (dmaState == 2) {
+            DMA_MemoryTargetConfig(DMA2_Stream1, (uint32_t) SDRAM_IMAGEADDR, DMA_Memory_0);
+            dmaState = 3;
+        } else {
+            DMA_MemoryTargetConfig(DMA2_Stream1, (uint32_t) SDRAM_IMAGEADDR + OV5642_IMAGE_BUFSIZE, DMA_Memory_1);
+            dmaState = 0;
+        }
+    }
+
 }
 
 ov5642_status_t ov5642_dcmiInit() {

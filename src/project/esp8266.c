@@ -477,6 +477,9 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 			} else if (attempt >= MAX_ATTEMPT){
 				log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "No response. going to sleep\0");
 				sleep_Standby();
+			} else if(attempt == RETRY_ATTEMPT){
+				mqtt_publish("img/data", dataPointer, dataLen, 0, 0);
+				attempt++;
 			} else {
 				attempt++;
 			}

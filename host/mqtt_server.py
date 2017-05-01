@@ -110,10 +110,10 @@ def display_image(l):
 
     print("\tDisplaying image.")
     print(len(g))
-    if len(g) <= 320*240:
-        g += bytes(320*240-len(g))
+    if len(g) <= 640*480:#320*240:
+        g += bytes(640*480-len(g))#(320*240-len(g))
     print("g is " + str(len(g)) + " bytes")
-    im = Image.frombytes("RGB", (320,240), g)
+    im = Image.frombytes("RGB", (640,480), g)
     im.show()
     im.save(pngname)
 
