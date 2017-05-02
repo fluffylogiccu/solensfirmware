@@ -29,6 +29,7 @@ uart_buffer_t rxBuffer;
 uint16_t crc;
 bool syncing = false;
 bool wifiConnected = false;
+bool mqtt_connected = false;
 bool recieved_start_ack = false;
 bool recieved_end_ack = false;
 bool recieved_data_ack = false;
@@ -596,16 +597,17 @@ esp8266_status_t esp8266_Init() {
 
 	//Sync with esp-link
 	bool ok;
-	//do{
-	ok = esp8266_Sync();
-	if(!ok){
-		log_Log(WIFI, WIFI_ERR_UNKNOWN, "Unable to sync.\0");
+	do{
+		ok = esp8266_Sync();
+		if(!ok) log_Log(WIFI, WIFI_ERR_UNKNOWN, "Unable to sync.\0");
 		//sleep_Standby();
-	}
-	//} while(!ok);
+	} while(!ok);
 
+	do{
+		mqtt_setup();
+		esp8266_Wait_Return(ESP_TIMEOUT);
+	} while(!mqtt_connected);
 
-	mqtt_setup();
 	esp8266_Wait_Return(ESP_TIMEOUT);
 
 	uint8_t buf[] = "Mornin'";
@@ -797,13 +799,14 @@ void mqtt_publish(const char* topic, const uint8_t* data, const uint16_t len, ui
 *	and most will just log information.
 */
 void mqtt_connected_callback(void *response){
+	mqtt_connected = true;
 	log_Log(WIFI, WIFI_INFO_OK, "MQTT connected!\0");
 }
 
 
 void mqtt_disconnnected_callback(void *response){
+	mqtt_connected = false;
 	log_Log(WIFI, WIFI_INFO_OK, "MQTT disconnected :'(\0");
-	sleep_Standby();
 }
 
 void mqtt_published_callback(void *response){
