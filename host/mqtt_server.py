@@ -3,12 +3,14 @@ import fifo
 import time
 import select
 from PIL import Image
+import threading
 
 serial_list = b''
 serial_count = 0
 serial_fifo = fifo.BytesFIFO(640*480*2)
 start = 0
 end = 0
+threads = []
 
 def main():
 
@@ -57,7 +59,10 @@ def on_message(client, userdata, msg):
         print('Upload took ' + str(upload) + ' seconds')
         print('Number of bytes recieved: ' + str(len(serial_fifo)))
         print(time.strftime("%Y%m%d_%H%M%S", time.gmtime()))
-        display_image(serial_fifo.read(len(serial_fifo)))
+        t = threading.Thread(target=display_image, args=(serial_fifo.read(len(serial_fifo)),))
+        threads.append(t)
+        t.start()
+        #display_image(serial_fifo.read(len(serial_fifo)))
         #client.publish('img/end/ack', 'data', 1, 0)
     elif(msg.topic == 'img/data'):
         serial_count += len(msg.payload)
