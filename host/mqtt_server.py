@@ -98,13 +98,46 @@ def display_image(l):
     filename = 'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.raw'
     pngname =  'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.png'
 
+    #Code Added by Justin to support JPG
+    jpgname =  'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.jpg'
+    jpgFileSOS= [0xFF,0xDB]
+    jfifSOI = [0xFF, 0xD8]
+    jfifAPPStart = [0xFF, 0xE0, 0x00,0x10]
+    jfifAPPId = [0x4A, 0x46, 0x49, 0x46, 0x00]
+    jfifVersion = [0x01, 0x01]
+    jfifDensityUnit = [0x01]
+    jfifXYDensity = [0x00, 0xC8, 0x00, 0xC8]
+    jfifXYThumbnail = [0x00,0x00]
+    jpgFileEnd = [0xFF, 0xD9]
+    ####
+
+
     with open(filename, "wb") as f:
         f.write(l)
+    f.close()
+    #Code Added by Justin to support JPG
+    with open(jpgname, "wb") as jpgFile:
+        #jpgFile.write(bytearray([0xFF]));
+        jpgFile.write(bytearray(jfifSOI))
+        jpgFile.write(bytearray(jfifAPPStart))
+        jpgFile.write(bytearray(jfifAPPId))
+        jpgFile.write(bytearray(jfifVersion))
+        jpgFile.write(bytearray(jfifDensityUnit))
+        jpgFile.write(bytearray(jfifXYDensity))
+        jpgFile.write(bytearray(jfifXYThumbnail))
+        #jpgFile.write(bytearray(jpgFileSOS))
+        jpgFile.write(l)
+        jpgFile.write(bytearray(jpgFileEnd))
+
+    jpgFile.close();
+    ####
+
+
+
 
     print("\tSaved image to data folder.")
     print("\tProcessing image for display.")
 
-    f.close()
 
 
     g = b''
@@ -119,8 +152,16 @@ def display_image(l):
         g += bytes(640*480-len(g))#(320*240-len(g))
     print("g is " + str(len(g)) + " bytes")
     im = Image.frombytes("RGB", (640,480), g)
-    im.show()
+    #im.show()
     im.save(pngname)
+
+    #Code added by Justin to support JPG
+    print ("Displaying Second Image");
+    im2 = Image.open(jpgname);
+    #im2.show();
+    im2.save(jpgname);
+    ####
+
 
 
 if __name__ == '__main__':
