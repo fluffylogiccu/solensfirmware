@@ -403,7 +403,8 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
     while (i < fourthSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
         // Delay of 100 works for lab computers
-        if (i % 100 == 0) {
+        // How did this number happen?????
+        if (i % 25 == 0) {
             for (uint32_t j = 0; j < 1000; j++) {}
         }
         USART_SendData(USART1, *(wifi_packet->wifi_packet_data+i));
