@@ -2179,8 +2179,6 @@ static const ov5642_reg_t OV5642_JPEG_Capture_QSXGA2[] =
 
 };
 
-<<<<<<< HEAD
-=======
 static const ov5642_reg_t OV5642_JPEG_Capture_QSXGA[] =
 {
 	// OV5642_ QSXGA _YUV7.5 fps
