@@ -384,18 +384,35 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
     // Send data serially
     while (i < firstSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
+        
+        // if (i % 10 == 0) {
+        //     for (uint32_t j = 0; j < 5000; j++) {}
+        // }
+
+
         USART_SendData(USART1, *(((uint8_t *)wifi_packet)+i));
         i++;
     }
     i = 0;
     while (i < secondSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
+
+        // if (i % 10 == 0) {
+        //     for (uint32_t j = 0; j < 5000; j++) {}
+        // }
+            
         USART_SendData(USART1, *(wifi_packet->wifi_packet_msg+i));
         i++;
     }
     i = firstSize + sizeof(wifi_packet->wifi_packet_msg);
     while (i < thirdSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
+        
+
+        // if (i % 10 == 0) {
+        //     for (uint32_t j = 0; j < 5000; j++) {}
+        // }
+        
         USART_SendData(USART1, *(((uint8_t *)wifi_packet)+i));
         i++;
     }
