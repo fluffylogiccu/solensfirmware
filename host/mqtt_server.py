@@ -95,8 +95,8 @@ def ycbcr2rgb(y,cb,cr):
 
 def display_image(l):
     print(len(l))
-    # filename = 'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.raw'
-    # pngname =  'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.png'
+    filename = 'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.raw'
+    pngname =  'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.png'
     #jpgExampleName = 'data/exampleplswork.jpg'
     #Code Added by Justin to support JPG
     jpgname =  'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.jpg'
@@ -152,8 +152,8 @@ def display_image(l):
 #         g += bytes(640*480-len(g))#(320*240-len(g))
 #     print("g is " + str(len(g)) + " bytes")
 #     im = Image.frombytes("RGB", (640,480), g)
-    #im.show()
-    #im.save(pngname)
+#     im.show()
+#     im.save(pngname)
 
     #Code added by Justin to support JPG
     print ("Displaying Image");

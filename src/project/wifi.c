@@ -47,7 +47,7 @@ wifi_status_t wifi_Send(mod_t module, gen_status_t status, char *msg, uint32_t l
             return WIFI_ERR_MSGSIZE;
         }
     }
-    
+
     log_Log(module,status, msg);
     // Construct packet
     wifi_packet_t wifi_packet;
