@@ -4,13 +4,16 @@ import time
 import select
 from PIL import Image
 import threading
+import os
+import errno
 
-serial_list = b''
+#serial_list = b''
 serial_count = 0
 serial_fifo = fifo.BytesFIFO(640*480*2)
 start = 0
 end = 0
 threads = []
+latlong = ''
 
 def main():
 
@@ -45,14 +48,19 @@ def on_message(client, userdata, msg):
     global serial_count
     global start
     global end
+    global latlong
     if(msg.topic == 'img/start'):
         start = time.time()
         print('Start image recieved')
         print(msg.payload)
-        serial_list = b''
+        latlong = msg.payload
+        #serial_list = b''
         serial_count = 0
         serial_fifo.read(len(serial_fifo))
         client.publish('img/start/ack', 'yee', 0, 0)
+    elif(msg.topic == 'img/loc'):
+        print("Location received")
+        print (msg.payload)
     elif(msg.topic == 'img/end'):
         end = time.time()
         upload = end - start
@@ -95,11 +103,36 @@ def ycbcr2rgb(y,cb,cr):
 
 def display_image(l):
     print(len(l))
-    filename = 'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.raw'
-    pngname =  'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.png'
+    global latlong
+    filename = 'data/' + str(latlong) + '/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.raw'
+    pngname =  'data/' + str(latlong) + '/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.png'
     #jpgExampleName = 'data/exampleplswork.jpg'
-    #Code Added by Justin to support JPG
-    jpgname =  'data/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.jpg'
+    #Code Added by Justin to support JPGdsd
+    jpgname =  'data/' + str(latlong) + '/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.jpg'
+
+    # if not os.path.exists(os.path.dirname(filename)):
+    #     try:
+    #         os.makedirs(os.path.dirname(filename))
+    #     except OSError as exc: # Guard against race condition
+    #         if exc.errno != errno.EEXIST:
+    #             raise
+
+    # if not os.path.exists(os.path.dirname(pngname)):
+    #     try:
+    #         os.makedirs(os.path.dirname(filename))
+    #     except OSError as exc: # Guard against race condition
+    #         if exc.errno != errno.EEXIST:
+    #             raise
+
+    if not os.path.exists(os.path.dirname(jpgname)):
+        try:
+            os.makedirs(os.path.dirname(filename))
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+
+
+
     # jpgFileSOS= [0xFF,0xDA]
     # jfifSOI = [0xFF, 0xD8]
     # jfifAPPStart = [0xFF, 0xE0, 0x00,0x10]
