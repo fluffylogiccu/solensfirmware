@@ -20,7 +20,6 @@
 #include "wifi.h"
 #include <stdint.h>
 #include "log.h"
-#include <string.h>
 
 
 slip_protocol_t proto;
