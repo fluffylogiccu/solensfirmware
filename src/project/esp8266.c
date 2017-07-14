@@ -384,6 +384,8 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
     // Send data serially
     while (i < firstSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
+
+
         USART_SendData(USART1, *(((uint8_t *)wifi_packet)+i));
         i++;
     }
@@ -403,8 +405,10 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
     while (i < fourthSize) {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}
         // Delay of 100 works for lab computers
-        if (i % 100 == 0) {
+        // How did this number happen?????
+        if (i % 50 == 0) {
             for (uint32_t j = 0; j < 1000; j++) {}
+            //usleep(10000);
         }
         USART_SendData(USART1, *(wifi_packet->wifi_packet_data+i));
         i++;
@@ -446,7 +450,8 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 	//char meep = 'e';
 	uint8_t meep = 0x55;
 	recieved_start_ack = false;
-	mqtt_publish("img/start", wifi_packet->wifi_packet_msg, wifi_packet->wifi_packet_msgLen, 0, 0);
+	//mqtt_publish("img/start", &meep, 1, 0, 0);
+    mqtt_publish("img/start", wifi_packet->wifi_packet_msg, wifi_packet->wifi_packet_msgLen, 0, 0);
 	int attempt = 0;
 	while(true){
 		esp8266_Wait_Return(100000);

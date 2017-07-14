@@ -29,7 +29,7 @@
 #define SLIP_ESC_END  0334    /**< ESC ESC_END means END data byte */
 #define SLIP_ESC_ESC  0335    /**< ESC ESC_ESC means ESC data byte */
 #define ESP_TIMEOUT   1000000 /**< Default timeout for TCP requests when waiting for a response */
-#define MAX_PACKET_SIZE 950     /*This needs to be a multiple of the image width times 2*/
+#define MAX_PACKET_SIZE 1600     /*This needs to be a multiple of the image width times 2*/
 #define MAX_ATTEMPT 50000
 #define RETRY_ATTEMPT 10000
 

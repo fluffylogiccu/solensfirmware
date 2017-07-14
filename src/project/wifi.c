@@ -13,6 +13,7 @@
  */
 
 #include "wifi.h"
+#include "log.h"
 #ifdef __ESP8266
 #include "esp8266.h"
 #endif
@@ -34,6 +35,8 @@ wifi_status_t wifi_Send(mod_t module, gen_status_t status, char *msg, uint32_t l
         return WIFI_ERR_DATASIZE;
     }
 
+    //log_Log(module,status,"Beginning Wifi Send\0");
+
     // Get msg length
     uint8_t msgLen = 0;
     while (*(msg+msgLen) != '\0') {
@@ -45,8 +48,11 @@ wifi_status_t wifi_Send(mod_t module, gen_status_t status, char *msg, uint32_t l
         }
     }
 
+    //log_Log(module,status, msg);
     // Construct packet
     wifi_packet_t wifi_packet;
+    wifi_packet.wifi_packet_msg = msg;
+    wifi_packet.wifi_packet_msgLen = msgLen;
     wifi_packet.wifi_packet_topic = "img";
     wifi_packet.wifi_packet_msgLen = msgLen;
     wifi_packet.wifi_packet_msg = msg;
