@@ -450,7 +450,8 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 	//char meep = 'e';
 	uint8_t meep = 0x55;
 	recieved_start_ack = false;
-	mqtt_publish("img/start", &meep, 1, 0, 0);
+	//mqtt_publish("img/start", &meep, 1, 0, 0);
+    mqtt_publish("img/start", wifi_packet->wifi_packet_msg, wifi_packet->wifi_packet_msgLen, 0, 0);
 	int attempt = 0;
 	while(true){
 		esp8266_Wait_Return(100000);

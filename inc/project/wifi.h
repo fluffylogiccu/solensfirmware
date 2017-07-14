@@ -30,6 +30,8 @@ typedef struct __attribute__ ((packed)) wifi_packet_s {
     char* wifi_packet_topic;
     uint32_t wifi_packet_dataLen;
     uint8_t *wifi_packet_data;
+    uint8_t wifi_packet_msgLen;
+    uint8_t *wifi_packet_msg;
 } wifi_packet_t;
 #endif
 
