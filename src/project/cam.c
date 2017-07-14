@@ -147,13 +147,12 @@ cam_status_t cam_Transfer() {
     // /* Power down the camera*/
     // GPIO_SetBits(GPIOG, GPIO_Pin_2);
 
+    char* id = "SN0000000001";
+
+
     log_Log(CAM, CAM_INFO_OK, "Beginning image transfer.\0");
 
     #ifdef __WIFI
-
-    //Boulder Lat Longs
-    // double latitude = 40.0149856;
-    // double longitude = -105.2705456;
 
     char* id = "SN000000001";
 
