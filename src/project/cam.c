@@ -150,14 +150,6 @@ cam_status_t cam_Transfer() {
 
     #ifdef __WIFI
 
-    //Boulder Lat Longs
-    double latitude = 40.0149856;
-    double longitude = -105.2705456;
-
-    std::string msg = std::to_string(latitude);
-    msg+=",";
-    msg += st::to_string(longitude);
-
     #ifdef __OV7670
     wifi_Send(CAM, CAM_WARN_UNKNOWN, "abcdefghijuklmnopqrstuvwxyz\0", 0, 0);
     wifi_Send(CAM, CAM_INFO_IMAGE, msg.c_str(), OV7670_IMAGE_BUFSIZE, (uint8_t *) SDRAM_IMAGEADDR);
