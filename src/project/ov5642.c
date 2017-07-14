@@ -386,7 +386,7 @@ ov5642_status_t ov5642_dcmiInit() {
     DCMI_Init(&dcmiInit);
 
     // Turn on JPEG mode
-    // DCMI_JPEGCmd(ENABLE);
+    DCMI_JPEGCmd(ENABLE);
 
     // Enable interrupt on frame complete in DCMI
     DCMI_ITConfig(DCMI_IT_OVF, ENABLE);
@@ -838,7 +838,9 @@ ov5642_status_t ov5642_Init() {
 }
 
 ov5642_status_t ov5642_Configure() {
-    ov5642_status_t ret = ov5642_regWriteArray(OV5642_QVGA_Preview);
+    //ov5642_status_t ret = ov5642_regWriteArray(OV5642_QVGA_Preview);
+    ov5642_status_t ret = ov5642_regWriteArray(OV5642_JPEG_Capture_QSXGA);
+    
     if (ret != OV5642_INFO_OK) {
         log_Log(OV5642, ret, "Could not configure OV5642 registers.\0");
         return ret;

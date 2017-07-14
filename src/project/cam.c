@@ -145,27 +145,30 @@ cam_status_t cam_Transfer() {
     // /* Power down the camera*/
     // GPIO_SetBits(GPIOG, GPIO_Pin_2);
 
+    char* loc = "40.0149856,-105.27052456";
+
+
     log_Log(CAM, CAM_INFO_OK, "Beginning image transfer.\0");
 
     #ifdef __WIFI
 
     #ifdef __OV7670
     wifi_Send(CAM, CAM_WARN_UNKNOWN, "abcdefghijuklmnopqrstuvwxyz\0", 0, 0);
-    wifi_Send(CAM, CAM_INFO_IMAGE, '\0', OV7670_IMAGE_BUFSIZE, (uint8_t *) SDRAM_IMAGEADDR);
+    wifi_Send(CAM, CAM_INFO_IMAGE, loc, OV7670_IMAGE_BUFSIZE, (uint8_t *) SDRAM_IMAGEADDR);
     #endif
 
     #ifdef __OV5642
-    wifi_Send(CAM, CAM_INFO_IMAGE, '\0', OV5642_IMAGE_BUFSIZE*4, (uint8_t *) SDRAM_IMAGEADDR);
+    wifi_Send(CAM, CAM_INFO_IMAGE, loc, OV5642_IMAGE_BUFSIZE*4, (uint8_t *) SDRAM_IMAGEADDR);
     #endif
 
     #else
 
     #ifdef __OV7670
-    log_Log(CAM, CAM_INFO_IMAGE, "\0", OV7670_IMAGE_BUFSIZE, (uint8_t *) SDRAM_IMAGEADDR);
+    log_Log(CAM, CAM_INFO_IMAGE, loc, OV7670_IMAGE_BUFSIZE, (uint8_t *) SDRAM_IMAGEADDR);
     #endif
 
     #ifdef __OV5642
-    log_Log(CAM, CAM_INFO_IMAGE, "\0", OV5642_IMAGE_BUFSIZE, (uint8_t *) SDRAM_IMAGEADDR);
+    log_Log(CAM, CAM_INFO_IMAGE, loc, OV5642_IMAGE_BUFSIZE, (uint8_t *) SDRAM_IMAGEADDR);
     #endif
 
     #endif
