@@ -6,14 +6,22 @@ from PIL import Image
 import threading
 import os
 import errno
+import string
 
 #serial_list = b''
 serial_count = 0
-serial_fifo = fifo.BytesFIFO(640*480*2)
+
+#List of Serial FIFO objects
+serial_fifos = []
+#List of IDs
+ids = []
+#serial_fifo = fifo.BytesFIFO(640*480*8)
 start = 0
 end = 0
 threads = []
-latlong = ''
+
+upload = 0
+
 
 def main():
 
@@ -37,45 +45,86 @@ def on_connect(client, userdata, flags, rc):
 
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
-    client.subscribe('img/data')
-    client.subscribe('img/start')
-    client.subscribe('img/end')
+    #client.subscribe('img/data/SN000000001')
+    client.subscribe('img/start') #Only subscribe to img/start to being with
+    #client.subscribe('img/end/SN000000001')
+    client.subscribe('#')
+
+    ##Adding this just to make it work remove later
+    #client.subscribe('img/data')
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
-    global serial_list
-    global serial_fifo
+    #global serial_list
+    #global serial_fifo
     global serial_count
     global start
     global end
-    global latlong
+    global upload
+    global ids
+    global serial_fifos
+    print(msg.topic);
     if(msg.topic == 'img/start'):
+        #Send signal back to board that we've received the code
+        client.publish('img/start/ack', 'yee', 0, 0)
+
         start = time.time()
-        print('Start image recieved')
-        print(msg.payload)
-        latlong = msg.payload
+        print('Start image received')
+        SNid = msg.payload
+
+        #Create new serial fifo and add to fifos list
+        serial_fifo = fifo.BytesFIFO(640*480*4)
+        serial_fifo.read(len(serial_fifo))
+        serial_fifos.append(serial_fifo)
+        
+        #Parse out the ID
+        strSNid= str(SNid)
+        strSNid= strSNid[2:-1]
+
+        #Add to ids list
+        ids.append(strSNid)
+
+        #### At this point, the id and the serial_fifos will have the same index in both lists, thus linking them
+
+
+        print("Subscribing to: " + "img/data/" + strSNid) #Allows for server to dynamically subscribe to individual esp-links
+        print("Subscribing to: " + "img/end/" + strSNid)  
+        client.subscribe('img/data/' + strSNid)
+        client.subscribe('img/end/' + strSNid)
         #serial_list = b''
         serial_count = 0
-        serial_fifo.read(len(serial_fifo))
-        client.publish('img/start/ack', 'yee', 0, 0)
-    elif(msg.topic == 'img/loc'):
-        print("Location received")
-        print (msg.payload)
-    elif(msg.topic == 'img/end'):
+
+    elif(msg.topic[:10] == 'img/end/SN'):
         end = time.time()
+        #Full topic = img/end/SN000000001 so id is last part
+        SerialID = msg.topic[8:]
+        #Find index of id
+        ind = ids.index(SerialID);
+        #index of id is same for corresponding serial_fifo bc they were added together
+        serial_fifo = serial_fifos[ind]
         upload = end - start
         print('Upload took ' + str(upload) + ' seconds')
-        print('Number of bytes recieved: ' + str(len(serial_fifo)))
+        print('Number of bytes received: ' + str(len(serial_fifo)))
         print(time.strftime("%Y%m%d_%H%M%S", time.gmtime()))
-        t = threading.Thread(target=display_image, args=(serial_fifo.read(len(serial_fifo)),))
+        client.unsubscribe('img/data/' + SerialID)
+        client.unsubscribe('img/end/' + SerialID)
+        t = threading.Thread(target=display_image, args=(serial_fifo.read(len(serial_fifo)),ind))
         threads.append(t)
         t.start()
         #display_image(serial_fifo.read(len(serial_fifo)))
         #client.publish('img/end/ack', 'data', 1, 0)
-    elif(msg.topic == 'img/data'):
+    elif(msg.topic[:11] == 'img/data/SN'):
+        client.publish('img/data/ack', 'end', 0, 0)
+        #Same procedure as img/end
+        #SerialID = msg.topic[9:] #Add this back later
+        SerialID = "SN000000001" #Temporary hard code
+        SNid= SerialID
+        ind = ids.index(SerialID);
+        serial_fifo = serial_fifos[ind]
+
         serial_count += len(msg.payload)
         serial_fifo.write(msg.payload)
-        client.publish('img/data/ack', 'end', 0, 0)
+        print("Received")
 
 def ycbcr2rgb(y,cb,cr):
 
@@ -101,99 +150,94 @@ def ycbcr2rgb(y,cb,cr):
 
     return bytes([R,G,B])
 
-def display_image(l):
+def display_image(l,ind):
     print(len(l))
-    global latlong
-    filename = 'data/' + str(latlong) + '/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.raw'
-    pngname =  'data/' + str(latlong) + '/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.png'
-    #jpgExampleName = 'data/exampleplswork.jpg'
-    #Code Added by Justin to support JPGdsd
-    jpgname =  'data/' + str(latlong) + '/output_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.jpg'
+    global upload
+    global serial_fifos
+    global ids
 
-    # if not os.path.exists(os.path.dirname(filename)):
-    #     try:
-    #         os.makedirs(os.path.dirname(filename))
-    #     except OSError as exc: # Guard against race condition
-    #         if exc.errno != errno.EEXIST:
-    #             raise
+    ##### DO NOW:
+    strSNid = ids[ind]
+    ###########
 
-    # if not os.path.exists(os.path.dirname(pngname)):
-    #     try:
-    #         os.makedirs(os.path.dirname(filename))
-    #     except OSError as exc: # Guard against race condition
-    #         if exc.errno != errno.EEXIST:
-    #             raise
+    del ids[ind]
+    del serial_fifos[ind]
+
+
+    # save stuff in ~/data/ directory
+    csvname = 'data/timings.csv' # Used to save the upload times for analysis
+
+    filename = 'data/' + strSNid + '/' + 'img_' + strSNid + '_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.raw'
+    pngname =  'data/' + strSNid + '/' + 'img_' + strSNid + '_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.png' 
+    jpgname =  'data/' + strSNid + '/' + 'img_' + strSNid + '_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.jpg'
 
     if not os.path.exists(os.path.dirname(jpgname)):
+        try:
+            os.makedirs(os.path.dirname(jpgname))
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+
+
+    with open (csvname, "a") as csvFile: #Append the upload times
+        csvFile.write(str(upload) + ',')
+
+   
+    #Code Added by Justin to support JPG
+    with open(jpgname, "wb") as jpgFile:
+        jpgFile.write(l)
+
+    jpgFile.close();
+    ####
+
+
+######################## Code to deal with non-JPEG images
+
+
+    if not os.path.exists(os.path.dirname(filename)):
         try:
             os.makedirs(os.path.dirname(filename))
         except OSError as exc: # Guard against race condition
             if exc.errno != errno.EEXIST:
                 raise
 
-
-
-    # jpgFileSOS= [0xFF,0xDA]
-    # jfifSOI = [0xFF, 0xD8]
-    # jfifAPPStart = [0xFF, 0xE0, 0x00,0x10]
-    # jfifAPPId = [0x4A, 0x46, 0x49, 0x46, 0x00]
-    # jfifVersion = [0x00, 0x01]
-    # jfifDensityUnit = [0x01]
-    # jfifXYDensity = [0x00, 0xC8, 0x00, 0xC8]
-    # jfifXYThumbnail = [0x00,0x00]
-    # jpgFileEnd = [0xFF, 0xD9]
-    # jpgSampleHeader = [0xFF ,0xDB ,0x00 ,0x43 ,0x00 ,0x08 ,0x06 ,0x06 ,0x07 ,0x06 ,0x05 ,0x08 ,0x07 ,0x07 ,0x07 ,0x09 ,0x09 ,0x08 ,0x0A ,0x0C ,0x14 ,0x0D ,0x0C ,0x0B ,0x0B ,0x0C ,0x19 ,0x12 ,0x13 ,0x0F ,0x14 ,0x1D ,0x1A ,0x1F ,0x1E ,0x1D ,0x1A ,0x1C ,0x1C ,0x20 ,0x24 ,0x2E ,0x27 ,0x20 ,0x22 ,0x2C ,0x23 ,0x1C ,0x1C ,0x28 ,0x37 ,0x29 ,0x2C ,0x30 ,0x31 ,0x34 ,0x34 ,0x34 ,0x1F ,0x27 ,0x39 ,0x3D ,0x38 ,0x32 ,0x3C ,0x2E ,0x33 ,0x34 ,0x32 ,0xFF ,0xDB ,0x00 ,0x43 ,0x01 ,0x09 ,0x09 ,0x09 ,0x0C ,0x0B ,0x0C ,0x18 ,0x0D ,0x0D ,0x18 ,0x32 ,0x21 ,0x1C ,0x21 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0x32 ,0xFF ,0xC0 ,0x00 ,0x11 ,0x08 ,0x01 ,0xE0 ,0x02 ,0x80 ,0x03 ,0x01 ,0x22 ,0x00 ,0x02 ,0x11 ,0x01 ,0x03 ,0x11 ,0x01 ,0xFF ,0xC4 ,0x00 ,0x1F ,0x00 ,0x00 ,0x01 ,0x05 ,0x01 ,0x01 ,0x01 ,0x01 ,0x01 ,0x01 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x01 ,0x02 ,0x03 ,0x04 ,0x05 ,0x06 ,0x07 ,0x08 ,0x09 ,0x0A ,0x0B ,0xFF ,0xC4 ,0x00 ,0xB5 ,0x10 ,0x00 ,0x02 ,0x01 ,0x03 ,0x03 ,0x02 ,0x04 ,0x03 ,0x05 ,0x05 ,0x04 ,0x04 ,0x00 ,0x00 ,0x01 ,0x7D ,0x01 ,0x02 ,0x03 ,0x00 ,0x04 ,0x11 ,0x05 ,0x12 ,0x21 ,0x31 ,0x41 ,0x06 ,0x13 ,0x51 ,0x61 ,0x07 ,0x22 ,0x71 ,0x14 ,0x32 ,0x81 ,0x91 ,0xA1 ,0x08 ,0x23 ,0x42 ,0xB1 ,0xC1 ,0x15 ,0x52 ,0xD1 ,0xF0 ,0x24 ,0x33 ,0x62 ,0x72 ,0x82 ,0x09 ,0x0A ,0x16 ,0x17 ,0x18 ,0x19 ,0x1A ,0x25 ,0x26 ,0x27 ,0x28 ,0x29 ,0x2A ,0x34 ,0x35 ,0x36 ,0x37 ,0x38 ,0x39 ,0x3A ,0x43 ,0x44 ,0x45 ,0x46 ,0x47 ,0x48 ,0x49 ,0x4A ,0x53 ,0x54 ,0x55 ,0x56 ,0x57 ,0x58 ,0x59 ,0x5A ,0x63 ,0x64 ,0x65 ,0x66 ,0x67 ,0x68 ,0x69 ,0x6A ,0x73 ,0x74 ,0x75 ,0x76 ,0x77 ,0x78 ,0x79 ,0x7A ,0x83 ,0x84 ,0x85 ,0x86 ,0x87 ,0x88 ,0x89 ,0x8A ,0x92 ,0x93 ,0x94 ,0x95 ,0x96 ,0x97 ,0x98 ,0x99 ,0x9A ,0xA2 ,0xA3 ,0xA4 ,0xA5 ,0xA6 ,0xA7 ,0xA8 ,0xA9 ,0xAA ,0xB2 ,0xB3 ,0xB4 ,0xB5 ,0xB6 ,0xB7 ,0xB8 ,0xB9 ,0xBA ,0xC2 ,0xC3 ,0xC4 ,0xC5 ,0xC6 ,0xC7 ,0xC8 ,0xC9 ,0xCA ,0xD2 ,0xD3 ,0xD4 ,0xD5 ,0xD6 ,0xD7 ,0xD8 ,0xD9 ,0xDA ,0xE1 ,0xE2 ,0xE3 ,0xE4 ,0xE5 ,0xE6 ,0xE7 ,0xE8 ,0xE9 ,0xEA ,0xF1 ,0xF2 ,0xF3 ,0xF4 ,0xF5 ,0xF6 ,0xF7 ,0xF8 ,0xF9 ,0xFA ,0xFF ,0xC4 ,0x00 ,0x1F ,0x01 ,0x00 ,0x03 ,0x01 ,0x01 ,0x01 ,0x01 ,0x01 ,0x01 ,0x01 ,0x01 ,0x01 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x01 ,0x02 ,0x03 ,0x04 ,0x05 ,0x06 ,0x07 ,0x08 ,0x09 ,0x0A ,0x0B ,0xFF ,0xC4 ,0x00 ,0xB5 ,0x11 ,0x00 ,0x02 ,0x01 ,0x02 ,0x04 ,0x04 ,0x03 ,0x04 ,0x07 ,0x05 ,0x04 ,0x04 ,0x00 ,0x01 ,0x02 ,0x77 ,0x00 ,0x01 ,0x02 ,0x03 ,0x11 ,0x04 ,0x05 ,0x21 ,0x31 ,0x06 ,0x12 ,0x41 ,0x51 ,0x07 ,0x61 ,0x71 ,0x13 ,0x22 ,0x32 ,0x81 ,0x08 ,0x14 ,0x42 ,0x91 ,0xA1 ,0xB1 ,0xC1 ,0x09 ,0x23 ,0x33 ,0x52 ,0xF0 ,0x15 ,0x62 ,0x72 ,0xD1 ,0x0A ,0x16 ,0x24 ,0x34 ,0xE1 ,0x25 ,0xF1 ,0x17 ,0x18 ,0x19 ,0x1A ,0x26 ,0x27 ,0x28 ,0x29 ,0x2A ,0x35 ,0x36 ,0x37 ,0x38 ,0x39 ,0x3A ,0x43 ,0x44 ,0x45 ,0x46 ,0x47 ,0x48 ,0x49 ,0x4A ,0x53 ,0x54 ,0x55 ,0x56 ,0x57 ,0x58 ,0x59 ,0x5A ,0x63 ,0x64 ,0x65 ,0x66 ,0x67 ,0x68 ,0x69 ,0x6A ,0x73 ,0x74 ,0x75 ,0x76 ,0x77 ,0x78 ,0x79 ,0x7A ,0x82 ,0x83 ,0x84 ,0x85 ,0x86 ,0x87 ,0x88 ,0x89 ,0x8A ,0x92 ,0x93 ,0x94 ,0x95 ,0x96 ,0x97 ,0x98 ,0x99 ,0x9A ,0xA2 ,0xA3 ,0xA4 ,0xA5 ,0xA6 ,0xA7 ,0xA8 ,0xA9 ,0xAA ,0xB2 ,0xB3 ,0xB4 ,0xB5 ,0xB6 ,0xB7 ,0xB8 ,0xB9 ,0xBA ,0xC2 ,0xC3 ,0xC4 ,0xC5 ,0xC6 ,0xC7 ,0xC8 ,0xC9 ,0xCA ,0xD2 ,0xD3 ,0xD4 ,0xD5 ,0xD6 ,0xD7 ,0xD8 ,0xD9 ,0xDA ,0xE2 ,0xE3 ,0xE4 ,0xE5 ,0xE6 ,0xE7 ,0xE8 ,0xE9 ,0xEA ,0xF2 ,0xF3 ,0xF4 ,0xF5 ,0xF6 ,0xF7 ,0xF8 ,0xF9 ,0xFA];
-
-    # with open(filename, "wb") as f:
-    #     f.write(l)
-    # f.close()
-    #Code Added by Justin to support JPG
-    with open(jpgname, "wb") as jpgFile:
-        #jpgFile.write(bytearray([0xFF]));
-        #jpgFile.write(bytearray(jfifSOI))
-        #jpgFile.write(bytearray(jfifAPPStart))
-        #jpgFile.write(bytearray(jfifAPPId))
-        #jpgFile.write(bytearray(jfifVersion))
-        #jpgFile.write(bytearray(jfifDensityUnit))
-        #jpgFile.write(bytearray(jfifXYDensity))
-        #jpgFile.write(bytearray(jfifXYThumbnail))
-        #jpgFile.write(bytearray(jpgSampleHeader))
-        #jpgFile.write(bytearray(jpgFileSOS))
-        jpgFile.write(l)
-        #jpgFile.write(bytearray(jpgFileEnd))
-
-    jpgFile.close();
-    ####
-
-
-
+    if not os.path.exists(os.path.dirname(pngname)):
+        try:
+            os.makedirs(os.path.dirname(pngname))
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
 
     print("\tSaved image to data folder.")
     print("\tProcessing image for display.")
 
 
+    with open(filename, "wb") as f:
+        f.write(l)
+    f.close()
+    g = b''
+    for i in range(0,len(l)-1,4):
+        g += ycbcr2rgb(l[i], l[i+1], l[i+3])
+        g += ycbcr2rgb(l[i+2], l[i+1], l[i+3])
+#        g += bytes([l[i]])
 
-#     g = b''
-#     for i in range(0,len(l)-1,4):
-#         g += ycbcr2rgb(l[i], l[i+1], l[i+3])
-#         g += ycbcr2rgb(l[i+2], l[i+1], l[i+3])
-# #        g += bytes([l[i]])
+    print("\tDisplaying image.")
+    print(len(g))
+    if len(g) <= 640*480:#320*240:
+        g += bytes(640*480-len(g))#(320*240-len(g))
+    print("g is " + str(len(g)) + " bytes")
+    im = Image.frombytes("RGB", (640,480), g)
+    im.show()
+    im.save(pngname)
 
-#     print("\tDisplaying image.")
-#     print(len(g))
-#     if len(g) <= 640*480:#320*240:
-#         g += bytes(640*480-len(g))#(320*240-len(g))
-#     print("g is " + str(len(g)) + " bytes")
-#     im = Image.frombytes("RGB", (640,480), g)
-#     im.show()
-#     im.save(pngname)
+######################
 
-    #Code added by Justin to support JPG
-    print ("Displaying Image");
-    im2 = Image.open(jpgname);
-    im2.show();
-    im2.save(jpgname);
-    ####
+    # ################## Code added by Justin to support JPG
+    # print ("Displaying Image");
+    # im2 = Image.open(jpgname);
+    # im2.show();
+    # im2.save(jpgname);
+    # ####################
 
 
 

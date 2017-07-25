@@ -30,6 +30,7 @@
 #define SLIP_ESC_ESC  0335    /**< ESC ESC_ESC means ESC data byte */
 #define ESP_TIMEOUT   1000000 /**< Default timeout for TCP requests when waiting for a response */
 #define MAX_PACKET_SIZE 950     /*This needs to be a multiple of the image width times 2*/
+//950
 #define MAX_ATTEMPT 50000
 #define RETRY_ATTEMPT 10000
 
@@ -268,6 +269,7 @@ void esp8266_Request(uint16_t cmd, uint32_t value, uint16_t argc);
 void esp8266_Request2(const void* data, uint16_t len);
 void esp8266_Request0(void);
 
+
 /** @brief Modified WaitReturn function from el-client
  *
  *  Spins on a response from the ESP8266 with a timeout
@@ -276,6 +278,25 @@ void esp8266_Request0(void);
  *  @return none
  */
 slip_packet_t *esp8266_Wait_Return(uint32_t timeout);
+
+
+/** @brief Modified WaitReturn function for only receiving data for mqtt
+ *
+ *  @return none
+ */
+slip_packet_t *esp8266_Wait_ReturnFromMQTT(uint32_t timeout);
+
+/** @brief Modified Process function for only receiving data for mqtt
+ *
+ *  @return none
+ */
+slip_packet_t *esp8266_ProcessMQTT();
+
+/** @brief Modified function for only receiving data for mqtt
+ *
+ *  @return none
+ */
+slip_packet_t *esp8266_protoCompletedCbMQTT(void);
 
 
 wifi_status_t esp8266_WifiCb(slip_response_t *response);

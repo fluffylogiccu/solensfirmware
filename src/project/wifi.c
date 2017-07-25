@@ -54,8 +54,6 @@ wifi_status_t wifi_Send(mod_t module, gen_status_t status, char *msg, uint32_t l
     wifi_packet.wifi_packet_msg = msg;
     wifi_packet.wifi_packet_msgLen = msgLen;
     wifi_packet.wifi_packet_topic = "img";
-    wifi_packet.wifi_packet_msgLen = msgLen;
-    wifi_packet.wifi_packet_msg = msg;
     wifi_packet.wifi_packet_dataLen = len;
     wifi_packet.wifi_packet_data = data;
 

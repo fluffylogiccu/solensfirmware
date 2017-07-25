@@ -243,6 +243,21 @@ uint16_t crc16Data(const unsigned char *data, uint16_t len, uint16_t acc)
   return acc;
 }
 
+
+// slip_packet_t* esp8266_quickCheckCallback(void) {
+//     slip_packet_t *packet = (slip_packet_t*)proto.buf;
+//     uint16_t crc = crc16Data(proto.buf, proto.dataLen-2, 0);
+//     slip_response_t resp;
+//     uint16_t resp_crc = *(uint16_t*)(proto.buf+proto.dataLen-2);
+//     if(crc != resp_crc){
+//         return NULL;
+//     }
+//     if(packet->cmd == CMD_RESP_CB && packet->value == (uint32_t)&mqtt_data_callback){
+//                 mqtt_data_callback(&resp);
+//     }
+//     return NULL;
+// }
+
 slip_packet_t *esp8266_protoCompletedCb(void){
     slip_packet_t *packet = (slip_packet_t*)proto.buf;
     uint16_t crc = crc16Data(proto.buf, proto.dataLen-2, 0);
@@ -292,6 +307,35 @@ slip_packet_t *esp8266_protoCompletedCb(void){
     }
 }
 
+
+
+slip_packet_t *esp8266_protoCompletedCbMQTT(void){
+    slip_packet_t *packet = (slip_packet_t*)proto.buf;
+    uint16_t crc = crc16Data(proto.buf, proto.dataLen-2, 0);
+    slip_response_t resp;
+    uint16_t resp_crc = *(uint16_t*)(proto.buf+proto.dataLen-2);
+    if(crc != resp_crc){
+        return NULL;
+    }
+    switch(packet->cmd){
+        case CMD_RESP_V:
+            return packet;
+        case CMD_RESP_CB:
+            packet_to_response(packet, &resp);
+            // Only check for data_callback
+            if(packet->value == (uint32_t)&mqtt_data_callback){
+                mqtt_data_callback(&resp);
+            }
+            return NULL;
+        default:
+            //command not implemented
+            log_Log(ESP8266, ESP8266_ERR_UNKNOWN, "Unknown Command\0");
+            return NULL;
+    }
+}
+
+
+
 slip_packet_t *esp8266_Process(){
     uint16_t value;
     while(USART_Buffer_Available() > 0){
@@ -316,6 +360,32 @@ slip_packet_t *esp8266_Process(){
     }
     return NULL;
 }
+
+slip_packet_t *esp8266_ProcessMQTT(){
+    uint16_t value;
+    while(USART_Buffer_Available() > 0){
+        value = USART_Buffer_Pop();
+        if(value == SLIP_ESC){
+            proto.isEsc = 1;
+        } else if (value == SLIP_END){
+            slip_packet_t *packet = proto.dataLen >= 8 ? esp8266_protoCompletedCbMQTT() : 0;
+            proto.dataLen = 0;
+            proto.isEsc = 0;
+            if(packet != NULL)return packet;
+        } else {
+            if(proto.isEsc){
+                if(value == SLIP_ESC_END) value = SLIP_END;
+                if(value == SLIP_ESC_ESC) value = SLIP_ESC;
+                proto.isEsc = 0;
+            }
+            if(proto.dataLen < proto.bufSize){
+                proto.buf[proto.dataLen++] = value;
+            }
+        }
+    }
+    return NULL;
+}
+
 
 void packet_to_response(slip_packet_t *packet, slip_response_t *resp){
 	resp->_cmd = packet;
@@ -454,7 +524,9 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
     mqtt_publish("img/start", wifi_packet->wifi_packet_msg, wifi_packet->wifi_packet_msgLen, 0, 0);
 	int attempt = 0;
 	while(true){
-		esp8266_Wait_Return(100000);
+        if (!recieved_start_ack) {
+            esp8266_Wait_ReturnFromMQTT(100000);
+        }
 		if(recieved_start_ack){
 			break;
 		} else if (attempt >= MAX_ATTEMPT){
@@ -467,24 +539,36 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 
 	uint8_t *dataPointer = wifi_packet->wifi_packet_data;
 	volatile uint32_t dataLen = 0;
+    
+    char* str1 = "img/data/";
+    char* str2 = "img/end/";
+    char * str3 = (char *) malloc(1 + strlen(str1)+ strlen(wifi_packet->wifi_packet_msg));
+    strcpy(str3, str1);
+    strcat(str3, wifi_packet->wifi_packet_msg);
+
+    char * str4 = (char *) malloc(1 + strlen(str2)+ strlen(wifi_packet->wifi_packet_msg));
+    strcpy(str4, str2);
+    strcat(str4, wifi_packet->wifi_packet_msg);
 
 	uint32_t i = 0;
 	/*Make sure MAX_PACKET_SIZE is a multiple of 2 * image width*/
 	for(i = 0; i < wifi_packet->wifi_packet_dataLen; i+=MAX_PACKET_SIZE){
 		recieved_data_ack = false;
 		dataLen = (wifi_packet->wifi_packet_dataLen - i ) > MAX_PACKET_SIZE ? MAX_PACKET_SIZE : (wifi_packet->wifi_packet_dataLen - i);
-		mqtt_publish("img/data", dataPointer, dataLen, 0, 0);
+		
+        mqtt_publish(str3, dataPointer, dataLen, 0, 0);
 		dataPointer += dataLen;
 		attempt = 0;
 		while(true){
-			esp8266_Wait_Return(1000);
+			//esp8266_Wait_Return(1000);
+            esp8266_Wait_ReturnFromMQTT(1000);
 			if(recieved_data_ack){
 				break;
 			} else if (attempt >= MAX_ATTEMPT){
 				log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "No response. going to sleep\0");
 				sleep_Standby();
 			} else if(attempt == RETRY_ATTEMPT){
-				mqtt_publish("img/data", dataPointer, dataLen, 0, 0);
+				mqtt_publish(str3, dataPointer, dataLen, 0, 0);
 				attempt++;
 			} else {
 				attempt++;
@@ -492,9 +576,14 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 		}
 
 	}
+    log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "Sending End of File\0");
+
+
+
 	char merp = 'f';
-	mqtt_publish("img/end", (uint8_t*)&merp, 1, 0, 0);
-	esp8266_Wait_Return(ESP_TIMEOUT);
+	mqtt_publish(str4, (uint8_t*)&merp, 1, 0, 0);
+	//esp8266_Wait_Return(ESP_TIMEOUT);
+    esp8266_Wait_ReturnFromMQTT(ESP_TIMEOUT);
 
     #endif
 
@@ -699,11 +788,24 @@ void esp8266_Request0(void){
 slip_packet_t *esp8266_Wait_Return(uint32_t timeout){
 	uint32_t count = 0;
 	while(count < timeout){
+        //esp8266_quickCheckCallback();
 		slip_packet_t *packet = esp8266_Process();
 		if(packet != NULL) return packet;
 		count++;
 	}
 	return NULL;
+}
+
+
+slip_packet_t *esp8266_Wait_ReturnFromMQTT(uint32_t timeout){
+    uint32_t count = 0;
+    while(count < timeout){
+        //esp8266_quickCheckCallback();
+        slip_packet_t *packet = esp8266_ProcessMQTT();
+        if(packet != NULL) return packet;
+        count++;
+    }
+    return NULL;
 }
 
 wifi_status_t esp8266_WifiCb(slip_response_t *response){
