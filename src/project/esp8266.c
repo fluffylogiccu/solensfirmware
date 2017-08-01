@@ -322,9 +322,9 @@ slip_packet_t *esp8266_protoCompletedCbMQTT(void){
             return packet;
         case CMD_RESP_CB:
             packet_to_response(packet, &resp);
-            // Only check for data_callback
-            if(packet->value == (uint32_t)&mqtt_data_callback){
-                mqtt_data_callback(&resp);
+            // Only check for published_callback
+            if(packet->value == (uint32_t)&mqtt_published_callback){
+                mqtt_published_callback(&resp);
             }
             return NULL;
         default:
@@ -519,13 +519,15 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 
 	//char meep = 'e';
 	//uint8_t meep = 0x55;
+
+    //log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "Arrived Here at ESP send\0");    
 	recieved_start_ack = false;
 	//mqtt_publish("img/start", &meep, 1, 0, 0);
     mqtt_publish("img/start", wifi_packet->wifi_packet_msg, wifi_packet->wifi_packet_msgLen, 0, 0);
 	int attempt = 0;
 	while(true){
         if (!recieved_start_ack) {
-            esp8266_Wait_ReturnFromMQTT(100000);
+            esp8266_Wait_Return(100000);
         }
 		if(recieved_start_ack){
 			break;
@@ -536,6 +538,8 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 			attempt++;
 		}
 	}
+    //log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "Image has been started\0");    
+
 
 	uint8_t *dataPointer = wifi_packet->wifi_packet_data;
 	volatile uint32_t dataLen = 0;
@@ -561,7 +565,7 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 		attempt = 0;
 		while(true){
 			//esp8266_Wait_Return(1000);
-            esp8266_Wait_ReturnFromMQTT(1000);
+            esp8266_Wait_Return(1000);
 			if(recieved_data_ack){
 				break;
 			} else if (attempt >= MAX_ATTEMPT){
@@ -576,7 +580,7 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 		}
 
 	}
-    log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "Sending End of File\0");
+    //log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "Sending End of File\0");
 
 
 
@@ -702,17 +706,23 @@ esp8266_status_t esp8266_Init() {
 		esp8266_Wait_Return(ESP_TIMEOUT);
 	} while(!mqtt_connected);
 
-	esp8266_Wait_Return(ESP_TIMEOUT);
 
+    //log_Log(WIFI, WIFI_ERR_UNKNOWN, "About to do some Wait Return.\0");
+	esp8266_Wait_Return(ESP_TIMEOUT);
+    //log_Log(WIFI, WIFI_ERR_UNKNOWN, "Finished Wait Return.\0");
 	uint8_t buf[] = "Mornin'";
 	mqtt_publish("wake-up", buf, sizeof(buf), 2, 0);
 	esp8266_Wait_Return(ESP_TIMEOUT);
 
-	mqtt_subscribe("sunrise", 1);
+	mqtt_subscribe("sunrise", 0);
 	//Ack channels for the image recieve
 	mqtt_subscribe("img/start/ack", 0);
 	mqtt_subscribe("img/data/ack", 0);
 	mqtt_subscribe("img/end/ack", 0);
+
+    // mqtt_subscribe("img/start/#", 0);
+    // mqtt_subscribe("img/data/#", 0);
+    // mqtt_subscribe("img/end/#", 0);
 
     #endif
 
@@ -868,6 +878,13 @@ void mqtt_setup(void){
 	cb = (uint32_t)&mqtt_disconnnected_callback;
 	esp8266_Request2(&cb, 4);
 	cb = (uint32_t)&mqtt_published_callback;
+    char snum[15];
+    itoa(cb,snum,10);
+    char* str3 = (char *) malloc(16);
+    strcpy(str3, snum);
+    log_Log(WIFI, WIFI_INFO_UNKNOWN, str3);
+    //free(snum);
+    //free(str3);
 	esp8266_Request2(&cb, 4);
 	cb = (uint32_t)&mqtt_data_callback;
 	esp8266_Request2(&cb, 4);
@@ -917,6 +934,9 @@ void mqtt_disconnnected_callback(void *response){
 }
 
 void mqtt_published_callback(void *response){
+    recieved_start_ack = true;
+    recieved_data_ack = true;
+    recieved_end_ack = true;
 	log_Log(WIFI, WIFI_INFO_OK, "MQTT published.\0");
 }
 
@@ -924,11 +944,13 @@ void mqtt_data_callback(slip_response_t *response){
 	char* topic = popString(response);
 	char* img_start_ack = "img/start/ack";
 	char* img_data_ack = "img/data/ack";
+    //char* img_data_ack = "img/data/SN000000001";
 	char* img_end_ack = "img/end/ack";
 	if(strcmp(topic, img_start_ack) == 0){
 		recieved_start_ack = true;
 	} else if(strcmp(topic, img_data_ack) == 0){
 		recieved_data_ack = true;
+        //log_Log(WIFI, WIFI_INFO_OK, "Data received from topic: img/data/#.\0");
 	} else if(strcmp(topic, img_end_ack)){
 		recieved_end_ack = true;
 	} else {

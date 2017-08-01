@@ -48,7 +48,7 @@ def on_connect(client, userdata, flags, rc):
     #client.subscribe('img/data/SN000000001')
     client.subscribe('img/start') #Only subscribe to img/start to being with
     #client.subscribe('img/end/SN000000001')
-    client.subscribe('#')
+    #client.subscribe('#')
 
     ##Adding this just to make it work remove later
     #client.subscribe('img/data')
@@ -63,10 +63,10 @@ def on_message(client, userdata, msg):
     global upload
     global ids
     global serial_fifos
-    print(msg.topic);
+    #print(msg.topic);
     if(msg.topic == 'img/start'):
         #Send signal back to board that we've received the code
-        client.publish('img/start/ack', 'yee', 0, 0)
+        #client.publish('img/start/ack', 'yee', 0, 0)
 
         start = time.time()
         print('Start image received')
@@ -114,17 +114,17 @@ def on_message(client, userdata, msg):
         #display_image(serial_fifo.read(len(serial_fifo)))
         #client.publish('img/end/ack', 'data', 1, 0)
     elif(msg.topic[:11] == 'img/data/SN'):
-        client.publish('img/data/ack', 'end', 0, 0)
+        #client.publish('img/data/ack', 'end', 0, 0)
         #Same procedure as img/end
-        #SerialID = msg.topic[9:] #Add this back later
-        SerialID = "SN000000001" #Temporary hard code
+        SerialID = msg.topic[9:] #Add this back later
+        #SerialID = "SN000000001" #Temporary hard code
         SNid= SerialID
         ind = ids.index(SerialID);
         serial_fifo = serial_fifos[ind]
 
         serial_count += len(msg.payload)
         serial_fifo.write(msg.payload)
-        print("Received")
+        #print("Received")
 
 def ycbcr2rgb(y,cb,cr):
 
@@ -230,7 +230,7 @@ def display_image(l,ind):
     im.show()
     im.save(pngname)
 
-######################
+# ######################
 
     # ################## Code added by Justin to support JPG
     # print ("Displaying Image");

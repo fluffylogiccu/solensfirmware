@@ -103,6 +103,8 @@ cam_status_t cam_Configure() {
 }
 
 cam_status_t cam_Capture() {
+
+    //log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "Arrived Here at CAM Capture\0");    
     // Check if initialized
     if (cam_initialized != 1) {
         return CAM_ERR_INIT;
@@ -133,6 +135,9 @@ cam_status_t cam_Capture() {
 }
 
 cam_status_t cam_Transfer() {
+
+    //log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "Arrived Here at CAM Transfer\0"); 
+
     // Check if initialized
     if (cam_initialized != 1) {
         return CAM_ERR_INIT;

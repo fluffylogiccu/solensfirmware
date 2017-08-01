@@ -165,6 +165,8 @@ int main() {
     }
 
     // Start main loop, shouldn't occur in normal operation
+
+    
     cmd_status_t cmd_st = cmd_Loop();
     if (cmd_st != CMD_INFO_OK) {
         log_Log(CMD, cmd_st, "Exiting main.\0");

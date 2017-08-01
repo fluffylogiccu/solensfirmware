@@ -839,7 +839,7 @@ ov5642_status_t ov5642_Init() {
 
 ov5642_status_t ov5642_Configure() {
     ov5642_status_t ret = ov5642_regWriteArray(OV5642_QVGA_Preview); //680x480 Non JPEG 
-   //ov5642_status_t ret = ov5642_regWriteArray(OV5642_JPEG_Capture_QSXGA); //JPEG 5MP image
+    //ov5642_status_t ret = ov5642_regWriteArray(OV5642_JPEG_Capture_QSXGA); //JPEG 5MP image
     if (ret != OV5642_INFO_OK) {
         log_Log(OV5642, ret, "Could not configure OV5642 registers.\0");
         return ret;
