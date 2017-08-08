@@ -11,6 +11,7 @@ import string
 #serial_list = b''
 serial_count = 0
 
+
 #List of Serial FIFO objects
 serial_fifos = []
 #List of IDs
@@ -45,13 +46,7 @@ def on_connect(client, userdata, flags, rc):
 
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
-    #client.subscribe('img/data/SN000000001')
     client.subscribe('img/start') #Only subscribe to img/start to being with
-    #client.subscribe('img/end/SN000000001')
-    #client.subscribe('#')
-
-    ##Adding this just to make it work remove later
-    #client.subscribe('img/data')
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
@@ -72,17 +67,23 @@ def on_message(client, userdata, msg):
         print('Start image received')
         SNid = msg.payload
 
-        #Create new serial fifo and add to fifos list
-        serial_fifo = fifo.BytesFIFO(640*480*4)
-        serial_fifo.read(len(serial_fifo))
-        serial_fifos.append(serial_fifo)
-        
+
         #Parse out the ID
         strSNid= str(SNid)
         strSNid= strSNid[2:-1]
 
-        #Add to ids list
-        ids.append(strSNid)
+        if strSNid in ids: #Check if id is already in list, if so, empty corresponding FIFO
+            ind = ids.index(strSNid)
+            serial_fifo = serial_fifos[ind]
+            serial_fifo.empty()
+        else:
+            #Add to ids list
+            ids.append(strSNid)
+
+            #Create new serial fifo and add to fifos list
+            serial_fifo = fifo.BytesFIFO(640*480*4)
+            serial_fifo.read(len(serial_fifo))
+            serial_fifos.append(serial_fifo)
 
         #### At this point, the id and the serial_fifos will have the same index in both lists, thus linking them
 

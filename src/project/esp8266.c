@@ -937,6 +937,7 @@ void mqtt_published_callback(void *response){
     recieved_start_ack = true;
     recieved_data_ack = true;
     recieved_end_ack = true;
+    for (int i =0; i <10000; i++) {}
 	log_Log(WIFI, WIFI_INFO_OK, "MQTT published.\0");
 }
 
