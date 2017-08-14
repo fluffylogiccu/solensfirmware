@@ -157,7 +157,7 @@ cam_status_t cam_Transfer() {
 
     #ifdef __WIFI
 
-    char* id = "SN000000001";
+    char* id = "SN000000002";
 
     #ifdef __OV7670
     wifi_Send(CAM, CAM_WARN_UNKNOWN, "abcdefghijuklmnopqrstuvwxyz\0", 0, 0);

@@ -112,6 +112,8 @@ sleep_status_t sleep_rtcInit() {
     struct tm *info_next;
     info_next = localtime(&sleep_alarmTime);
 
+    log_Log(SLEEP, SLEEP_INFO_OK, asctime(info));
+
     /* Disable the Alarm A */
     RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
 

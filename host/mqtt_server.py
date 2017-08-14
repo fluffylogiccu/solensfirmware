@@ -125,7 +125,7 @@ def on_message(client, userdata, msg):
 
         serial_count += len(msg.payload)
         serial_fifo.write(msg.payload)
-        #print("Received")
+        print("Received")
 
 def ycbcr2rgb(y,cb,cr):
 
@@ -157,9 +157,16 @@ def display_image(l,ind):
     global serial_fifos
     global ids
 
-    ##### DO NOW:
+    # JK -- Use index to get ID from dynamically allocated ID list
     strSNid = ids[ind]
-    ###########
+    
+
+    # RF --  Need to match ID to static list of IDs
+    # ex: key: value ---> ID : LatLong
+    # SN 0000 00001
+    latlongidpairs= {'SN000000001': '40N20W', 'SN00000002': '40N30W'}
+    LatLong= latlongidpairs[strSNid]
+    # print('ID: ' + strSNid + ' LatLong: ' + LatLong)
 
     del ids[ind]
     del serial_fifos[ind]
@@ -168,9 +175,10 @@ def display_image(l,ind):
     # save stuff in ~/data/ directory
     csvname = 'data/timings.csv' # Used to save the upload times for analysis
 
-    filename = 'data/' + strSNid + '/' + 'img_' + strSNid + '_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.raw'
-    pngname =  'data/' + strSNid + '/' + 'img_' + strSNid + '_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.png' 
-    jpgname =  'data/' + strSNid + '/' + 'img_' + strSNid + '_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.jpg'
+    # create filenames
+    filename = 'data/' + strSNid + '/' + strSNid + '_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '_' + LatLong + '.raw'
+    pngname =  'data/' + strSNid + '/' + strSNid + '_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '_' + LatLong + '.png' 
+    jpgname =  'data/' + strSNid + '/' + strSNid + '_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '_' + LatLong + '.jpg'
 
     if not os.path.exists(os.path.dirname(jpgname)):
         try:

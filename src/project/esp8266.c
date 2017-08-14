@@ -855,10 +855,11 @@ wifi_status_t esp8266_WifiCb(slip_response_t *response){
 void esp8266_ResetCb(void){
 	//Callback that gets called when the esp gets reset and we need to sync
 	bool ok = false;
-	//do {
+	do {
 		ok = esp8266_Sync();
 		log_Log(WIFI, WIFI_INFO_UNKNOWN, "Esp needs sync!");
-	//} while(!ok);
+	} while(!ok);
+    sleep_Standby();
 }
 
 uint32_t esp8266_GetTime(){
