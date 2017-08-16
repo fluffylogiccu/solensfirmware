@@ -979,7 +979,8 @@ static const ov5642_reg_t OV5642_JPEG_Capture_QSXGA[] =
 	{0x3a00 ,0x78},	//AEC System Control 0
 	{0x460b ,0x35},	//RSV VFIFO Control 0B
 	{0x471d ,0x00},	//DVP CONTROL 1D
-	{0x4713 ,0x03},	//COMPRESSION MODE SELECT mode3
+	{0x4713 ,0x03},	//COMPRESSION MODE SELECT mode6
+	//{0x4400 ,0x81},  //CTRl 00 Soeed Control
 	{0x471c ,0x50},	//RSV
 	{0x5682 ,0x0a},	//AVG X END
 	{0x5683 ,0x20},	//AVG X END
@@ -988,7 +989,7 @@ static const ov5642_reg_t OV5642_JPEG_Capture_QSXGA[] =
 	{0x5001 ,0x4f},	//ISP CONTROL 01, UV adjust/Line stretch/UV average/Color matrix/AWB enable
 	{0x589b ,0x00}, //RSV
 	{0x589a ,0xc0},	//RSV
-	{0x4407 ,0x08},	//COMPRESSION CTRL07 Bit[5:0]: Quantization scale  0x02
+	{0x4407 ,0x0c},	//COMPRESSION CTRL07 Bit[5:0]: Quantization scale  0x02
 	{0x589b ,0x00},	//RSV
 	{0x589a ,0xc0},	//RSV
 	{0x3002 ,0x0c},	//Reset for Individual Block, Reset SFIFO/compression
@@ -1013,6 +1014,7 @@ static const ov5642_reg_t OV5642_JPEG_Capture_QSXGA[] =
 	// {0x460c,0x22},
 	{0x3017 ,0x7f},
 	{0x3018 ,0xfc},
+	{0x4500, 0x7e},
 };
 
 

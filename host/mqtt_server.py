@@ -75,15 +75,16 @@ def on_message(client, userdata, msg):
         if strSNid in ids: #Check if id is already in list, if so, empty corresponding FIFO
             ind = ids.index(strSNid)
             serial_fifo = serial_fifos[ind]
-            serial_fifo.empty()
-        else:
-            #Add to ids list
-            ids.append(strSNid)
+            del ids[ind]
+            del serial_fifos[ind]
+        
+        #Add to ids list
+        ids.append(strSNid)
 
-            #Create new serial fifo and add to fifos list
-            serial_fifo = fifo.BytesFIFO(640*480*4)
-            serial_fifo.read(len(serial_fifo))
-            serial_fifos.append(serial_fifo)
+        #Create new serial fifo and add to fifos list
+        serial_fifo = fifo.BytesFIFO(640*480*4)
+        serial_fifo.read(len(serial_fifo))
+        serial_fifos.append(serial_fifo)
 
         #### At this point, the id and the serial_fifos will have the same index in both lists, thus linking them
 
@@ -165,7 +166,8 @@ def display_image(l,ind):
     # ex: key: value ---> ID : LatLong
     # SN 0000 00001
     latlongidpairs= {'SN000000001': '40N20W', 'SN00000002': '40N30W'}
-    LatLong= latlongidpairs[strSNid]
+    #LatLong= latlongidpairs[strSNid]
+    LatLong = '40N20W'
     # print('ID: ' + strSNid + ' LatLong: ' + LatLong)
 
     del ids[ind]
@@ -190,14 +192,6 @@ def display_image(l,ind):
 
     with open (csvname, "a") as csvFile: #Append the upload times
         csvFile.write(str(upload) + ',')
-
-   
-    #Code Added by Justin to support JPG
-    with open(jpgname, "wb") as jpgFile:
-        jpgFile.write(l)
-
-    jpgFile.close();
-    ####
 
 
 ######################## Code to deal with non-JPEG images
@@ -242,6 +236,14 @@ def display_image(l,ind):
 # ######################
 
     # ################## Code added by Justin to support JPG
+    
+
+    # with open(jpgname, "wb") as jpgFile:
+    #     jpgFile.write(l)
+
+    # jpgFile.close();
+
+
     # print ("Displaying Image");
     # im2 = Image.open(jpgname);
     # im2.show();

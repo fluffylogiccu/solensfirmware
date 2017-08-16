@@ -523,7 +523,7 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
     //log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "Arrived Here at ESP send\0");    
 	recieved_start_ack = false;
 	//mqtt_publish("img/start", &meep, 1, 0, 0);
-    mqtt_publish("img/start", wifi_packet->wifi_packet_msg, wifi_packet->wifi_packet_msgLen, 0, 0);
+    mqtt_publish("img/start", wifi_packet->wifi_packet_msg, wifi_packet->wifi_packet_msgLen, 1, 0);
 	int attempt = 0;
 	while(true){
         if (!recieved_start_ack) {
@@ -559,8 +559,9 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 	for(i = 0; i < wifi_packet->wifi_packet_dataLen; i+=MAX_PACKET_SIZE){
 		recieved_data_ack = false;
 		dataLen = (wifi_packet->wifi_packet_dataLen - i ) > MAX_PACKET_SIZE ? MAX_PACKET_SIZE : (wifi_packet->wifi_packet_dataLen - i);
-		
-        mqtt_publish(str3, dataPointer, dataLen, 0, 0);
+		//for (int i =0; i <40000; i++) {}
+        //log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "Sending Packet\0");
+        mqtt_publish(str3, dataPointer, dataLen, 1, 0);
 		dataPointer += dataLen;
 		attempt = 0;
 		while(true){
@@ -572,7 +573,7 @@ esp8266_status_t esp8266_Send(wifi_packet_t *wifi_packet) {
 				log_Log(WIFI, WIFI_WARN_NO_SERVER_RESPONSE, "No response. going to sleep\0");
 				sleep_Standby();
 			} else if(attempt == RETRY_ATTEMPT){
-				mqtt_publish(str3, dataPointer, dataLen, 0, 0);
+				mqtt_publish(str3, dataPointer, dataLen, 1, 0);
 				attempt++;
 			} else {
 				attempt++;
@@ -714,11 +715,11 @@ esp8266_status_t esp8266_Init() {
 	mqtt_publish("wake-up", buf, sizeof(buf), 2, 0);
 	esp8266_Wait_Return(ESP_TIMEOUT);
 
-	mqtt_subscribe("sunrise", 0);
-	//Ack channels for the image recieve
-	mqtt_subscribe("img/start/ack", 0);
-	mqtt_subscribe("img/data/ack", 0);
-	mqtt_subscribe("img/end/ack", 0);
+	// mqtt_subscribe("sunrise", 0);
+	// //Ack channels for the image recieve
+	// mqtt_subscribe("img/start/ack", 0);
+	// mqtt_subscribe("img/data/ack", 0);
+	// mqtt_subscribe("img/end/ack", 0);
 
     // mqtt_subscribe("img/start/#", 0);
     // mqtt_subscribe("img/data/#", 0);
@@ -938,25 +939,30 @@ void mqtt_published_callback(void *response){
     recieved_start_ack = true;
     recieved_data_ack = true;
     recieved_end_ack = true;
-    for (int i =0; i <10000; i++) {}
-	log_Log(WIFI, WIFI_INFO_OK, "MQTT published.\0");
+    //for (int i =0; i <100000; i++) {}
+	//log_Log(WIFI, WIFI_INFO_OK, "MQTT published.\0");
 }
 
 void mqtt_data_callback(slip_response_t *response){
+    // log_Log(WIFI, WIFI_INFO_OK, "Data received.\0");
 	char* topic = popString(response);
-	char* img_start_ack = "img/start/ack";
-	char* img_data_ack = "img/data/ack";
-    //char* img_data_ack = "img/data/SN000000001";
-	char* img_end_ack = "img/end/ack";
-	if(strcmp(topic, img_start_ack) == 0){
-		recieved_start_ack = true;
-	} else if(strcmp(topic, img_data_ack) == 0){
-		recieved_data_ack = true;
-        //log_Log(WIFI, WIFI_INFO_OK, "Data received from topic: img/data/#.\0");
-	} else if(strcmp(topic, img_end_ack)){
-		recieved_end_ack = true;
-	} else {
-		log_Log(WIFI, WIFI_INFO_OK, topic);
-	}
-	free(topic);
+    //log_Log(WIFI, WIFI_INFO_OK, topic);
+    // recieved_start_ack = true;
+    // recieved_data_ack = true;
+    // recieved_end_ack = true;
+	// char* img_start_ack = "img/start/ack";
+	// char* img_data_ack = "img/data/ack";
+ //    //char* img_data_ack = "img/data/SN000000001";
+	// char* img_end_ack = "img/end/ack";
+	// if(strcmp(topic, img_start_ack) == 0){
+	// 	recieved_start_ack = true;
+	// } else if(strcmp(topic, img_data_ack) == 0){
+	// 	recieved_data_ack = true;
+ //        //log_Log(WIFI, WIFI_INFO_OK, "Data received from topic: img/data/#.\0");
+	// } else if(strcmp(topic, img_end_ack)){
+	// 	recieved_end_ack = true;
+	// } else {
+	// 	log_Log(WIFI, WIFI_INFO_OK, topic);
+	// }
+	// free(topic);
 }
